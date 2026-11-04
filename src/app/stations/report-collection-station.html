@@ -25,35 +25,39 @@
       <p-message severity="info" [text]="info()!" styleClass="mb-3 w-full" />
     }
 
-    <form class="station-banner mb-4 !items-end" (submit)="search($event)">
-      <div class="min-w-0 flex-1">
-        <strong class="mb-2 block">
+    <form class="rc-search mb-4" (submit)="search($event)">
+      <div class="rc-search__copy">
+        <p class="rc-eyebrow m-0">Collection desk</p>
+        <strong class="rc-search__title">
           @if (mode() === 'today') {
             Today · {{ todayLabel }}
           } @else {
             Search results
           }
         </strong>
-        <p-iconfield class="w-full max-w-xl">
+        <span class="rc-search__hint">Enter visit number, phone, or name — leave empty and Find to return to today.</span>
+      </div>
+      <div class="rc-search__row">
+        <p-iconfield class="rc-search__field">
           <p-inputicon styleClass="pi pi-search" />
           <input
             pInputText
             class="w-full"
             [(ngModel)]="query"
             name="reportQuery"
-            placeholder="Visit number, phone, or name (clear + Find for today)"
+            placeholder="V-0123 / 0300… / patient name"
             autocomplete="off"
             autofocus
           />
         </p-iconfield>
+        <p-button
+          type="submit"
+          icon="pi pi-search"
+          label="Find report"
+          [loading]="searching() && mode() === 'search'"
+          (onClick)="search()"
+        />
       </div>
-      <p-button
-        type="submit"
-        icon="pi pi-search"
-        label="Find report"
-        [loading]="searching() && mode() === 'search'"
-        (onClick)="search()"
-      />
     </form>
 
     @if (reports().length === 0) {
@@ -70,34 +74,70 @@
         </div>
       </div>
     } @else {
-      <div class="grid gap-3">
+      <div class="rc-list">
         @for (report of reports(); track report.id) {
-          <p-card styleClass="station-card">
-            <div class="station-card__head">
-              <div class="min-w-0">
-                <h2 class="station-card__title">{{ report.visitNumber }} · {{ report.patientName }}</h2>
-                <p class="station-card__meta m-0 mt-0.5">
-                  {{ report.phone }} · {{ report.age }} yrs · {{ report.gender }} ·
-                  {{ report.pathway }} · Finalized
-                  {{ report.finalizedAt | date: 'dd MMM yyyy, HH:mm' }}
-                  @if (report.finalizedByName) {
-                    by {{ report.finalizedByName }}
-                  }
-                </p>
-                <p class="m-0 mt-1 text-[12px] text-[#475569]">{{ lineSummary(report) }}</p>
+          <article class="rc-item">
+            <div class="rc-item__main">
+              <div class="rc-item__identity">
+                <span class="rc-visit">{{ report.visitNumber }}</span>
+                <h2 class="rc-patient">{{ report.patientName }}</h2>
               </div>
-              <div class="flex flex-wrap items-center gap-1.5">
-                <p-tag [value]="'Printed ×' + report.printCount" severity="secondary" />
-                <p-button
-                  icon="pi pi-print"
-                  label="Print report"
-                  size="small"
-                  [loading]="printingId() === report.id"
-                  (onClick)="print(report)"
-                />
+
+              <dl class="rc-meta">
+                <div>
+                  <dt>Phone</dt>
+                  <dd>{{ report.phone || '—' }}</dd>
+                </div>
+                <div>
+                  <dt>Patient</dt>
+                  <dd>{{ report.age }} yrs · {{ report.gender }}</dd>
+                </div>
+                <div>
+                  <dt>Pathway</dt>
+                  <dd>
+                    <p-tag [value]="report.pathway" [severity]="pathwaySeverity(report.pathway)" />
+                  </dd>
+                </div>
+                <div>
+                  <dt>Finalized</dt>
+                  <dd>
+                    {{ report.finalizedAt | date: 'dd MMM, HH:mm' }}
+                    @if (report.finalizedByName) {
+                      <span class="rc-by">· {{ report.finalizedByName }}</span>
+                    }
+                  </dd>
+                </div>
+              </dl>
+
+              <div class="rc-tests">
+                <span class="rc-tests__label">Tests on this report</span>
+                <div class="rc-tests__chips">
+                  @for (name of serviceNames(report); track name) {
+                    <span class="rc-chip">{{ name }}</span>
+                  } @empty {
+                    <span class="rc-chip rc-chip--muted">No tests</span>
+                  }
+                </div>
               </div>
             </div>
-          </p-card>
+
+            <aside class="rc-item__action">
+              <span class="rc-print-count" [class.is-printed]="report.printCount > 0">
+                @if (report.printCount > 0) {
+                  Printed ×{{ report.printCount }}
+                } @else {
+                  Not printed yet
+                }
+              </span>
+              <p-button
+                icon="pi pi-print"
+                [label]="report.printCount > 0 ? 'Reprint' : 'Print report'"
+                size="small"
+                [loading]="printingId() === report.id"
+                (onClick)="print(report)"
+              />
+            </aside>
+          </article>
         }
       </div>
     }

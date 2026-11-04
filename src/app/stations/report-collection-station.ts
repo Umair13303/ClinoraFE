@@ -3,7 +3,6 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Button } from 'primeng/button';
-import { Card } from 'primeng/card';
 import { IconField } from 'primeng/iconfield';
 import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
@@ -15,8 +14,9 @@ import { printFinalReport } from '../print/print';
 
 @Component({
   selector: 'app-report-collection-station',
-  imports: [FormsModule, DatePipe, Button, Card, IconField, InputIcon, InputText, Message, Tag],
+  imports: [FormsModule, DatePipe, Button, IconField, InputIcon, InputText, Message, Tag],
   templateUrl: './report-collection-station.html',
+  styleUrl: './report-collection-station.css',
 })
 export class ReportCollectionStation implements OnInit {
   private readonly api = inject(ClinicApi);
@@ -123,7 +123,20 @@ export class ReportCollectionStation implements OnInit {
     }
   }
 
-  protected lineSummary(report: ReportDto): string {
-    return (report.lines ?? []).map((l) => l.serviceName).join(' · ') || 'No lines';
+  protected serviceNames(report: ReportDto): string[] {
+    return (report.lines ?? []).map((l) => l.serviceName).filter(Boolean);
+  }
+
+  protected pathwaySeverity(pathway: string): 'success' | 'info' | 'warn' | 'secondary' {
+    switch (pathway) {
+      case 'Laboratory':
+        return 'info';
+      case 'Radiology':
+        return 'warn';
+      case 'Mixed':
+        return 'secondary';
+      default:
+        return 'secondary';
+    }
   }
 }
