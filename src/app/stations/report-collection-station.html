@@ -1,0 +1,105 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Report collection</strong>
+      <span>Today’s finalized reports · search to find older ones</span>
+    </div>
+    <div class="station-toolbar">
+      <p-button
+        icon="pi pi-refresh"
+        label="Today"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        [loading]="searching() && mode() === 'today'"
+        (onClick)="loadToday()"
+      />
+    </div>
+  </header>
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
+    }
+    @if (info()) {
+      <p-message severity="info" [text]="info()!" styleClass="mb-3 w-full" />
+    }
+
+    <form class="station-banner mb-4 !items-end" (submit)="search($event)">
+      <div class="min-w-0 flex-1">
+        <strong class="mb-2 block">
+          @if (mode() === 'today') {
+            Today · {{ todayLabel }}
+          } @else {
+            Search results
+          }
+        </strong>
+        <p-iconfield class="w-full max-w-xl">
+          <p-inputicon styleClass="pi pi-search" />
+          <input
+            pInputText
+            class="w-full"
+            [(ngModel)]="query"
+            name="reportQuery"
+            placeholder="Visit number, phone, or name (clear + Find for today)"
+            autocomplete="off"
+            autofocus
+          />
+        </p-iconfield>
+      </div>
+      <p-button
+        type="submit"
+        icon="pi pi-search"
+        label="Find report"
+        [loading]="searching() && mode() === 'search'"
+        (onClick)="search()"
+      />
+    </form>
+
+    @if (reports().length === 0) {
+      <div class="station-empty">
+        <i class="pi pi-inbox"></i>
+        <div>
+          @if (mode() === 'today') {
+            <strong>No reports finalized today</strong>
+            <p>When the doctor finalizes a visit, it will appear here for collection and print.</p>
+          } @else {
+            <strong>No report found</strong>
+            <p>Check the visit number, or confirm the doctor has finalized this visit.</p>
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="grid gap-3">
+        @for (report of reports(); track report.id) {
+          <p-card styleClass="station-card">
+            <div class="station-card__head">
+              <div class="min-w-0">
+                <h2 class="station-card__title">{{ report.visitNumber }} · {{ report.patientName }}</h2>
+                <p class="station-card__meta m-0 mt-0.5">
+                  {{ report.phone }} · {{ report.age }} yrs · {{ report.gender }} ·
+                  {{ report.pathway }} · Finalized
+                  {{ report.finalizedAt | date: 'dd MMM yyyy, HH:mm' }}
+                  @if (report.finalizedByName) {
+                    by {{ report.finalizedByName }}
+                  }
+                </p>
+                <p class="m-0 mt-1 text-[12px] text-[#475569]">{{ lineSummary(report) }}</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <p-tag [value]="'Printed ×' + report.printCount" severity="secondary" />
+                <p-button
+                  icon="pi pi-print"
+                  label="Print report"
+                  size="small"
+                  [loading]="printingId() === report.id"
+                  (onClick)="print(report)"
+                />
+              </div>
+            </div>
+          </p-card>
+        }
+      </div>
+    }
+  </main>
+</div>

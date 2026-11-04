@@ -4,100 +4,158 @@
       <strong>Sample collection</strong>
       <span>One tube group = one draw · barcode prints after collect</span>
     </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <input
-        pInputText
-        [ngModel]="filter()"
-        (ngModelChange)="filter.set($event)"
-        placeholder="Find visit / patient / test"
-      />
-      <input
-        pInputText
-        [ngModel]="phlebotomist"
-        (ngModelChange)="onPhlebotomist($event)"
-        placeholder="Phlebotomist"
-      />
+    <div class="station-toolbar">
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-search" />
+        <input
+          pInputText
+          [ngModel]="filter()"
+          (ngModelChange)="filter.set($event)"
+          placeholder="Visit / patient / test"
+        />
+      </p-iconfield>
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-user" />
+        <input
+          pInputText
+          [ngModel]="phlebotomist"
+          (ngModelChange)="onPhlebotomist($event)"
+          placeholder="Phlebotomist"
+        />
+      </p-iconfield>
       @if (lastBarcode()) {
-        <p-button label="Reprint barcode" severity="secondary" [outlined]="true" size="small" (onClick)="reprintLast()" />
+        <p-button
+          icon="pi pi-print"
+          label="Reprint"
+          severity="secondary"
+          [outlined]="true"
+          size="small"
+          (onClick)="reprintLast()"
+        />
       }
-      <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
+      <p-button
+        icon="pi pi-refresh"
+        label="Refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        (onClick)="reload()"
+      />
     </div>
   </header>
-  <main class="desk-main overflow-auto p-3">
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
     @if (error()) {
-      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
     }
     @if (info()) {
-      <p-message severity="success" [text]="info()!" styleClass="mb-2 w-full" />
+      <p-message severity="success" [text]="info()!" styleClass="mb-3 w-full" />
     }
+
+    <div class="station-banner">
+      <div>
+        <strong>{{ visibleGroups().length }} tube group{{ visibleGroups().length === 1 ? '' : 's' }} waiting</strong>
+        <span>Select tests in a shared tube, then collect once for one barcode.</span>
+      </div>
+      <p-tag [value]="visibleGroups().length ? 'Queue open' : 'Clear'" [severity]="visibleGroups().length ? 'info' : 'success'" />
+    </div>
+
     @if (visibleGroups().length === 0) {
-      <p class="text-[12px] text-[#64748b]">No samples awaiting collection.</p>
-    }
-    <div class="grid gap-3">
-      @for (group of visibleGroups(); track group.groupKey) {
-        <section class="desk-panel">
-          <header class="desk-panel__head">
-            <h2>{{ group.visitNumber }} · {{ group.patientName }}</h2>
-            <span>{{ group.groupLabel }} · {{ selectedCount(group) }}/{{ group.lines.length }}</span>
-          </header>
-          <div class="desk-panel__body">
-            <p class="m-0 mb-2 text-[11px] text-[#64748b]">
-              Tube: {{ group.sampleTypeName }} · {{ group.containerName }} ·
-              <strong class="text-[#0f172a]">{{ group.bottleColorName }}</strong>
-            </p>
-            <ul class="m-0 mb-2 list-none p-0">
-              @for (line of group.lines; track line.visitServiceId) {
-                <li class="flex items-center gap-2 border-b border-[#eef2f6] py-1.5 text-[12px]">
+      <div class="station-empty">
+        <i class="pi pi-inbox"></i>
+        <div>
+          <strong>No samples awaiting collection</strong>
+          <p>New lab visits appear here after front desk registration.</p>
+        </div>
+      </div>
+    } @else {
+      <div class="grid gap-3">
+        @for (group of visibleGroups(); track group.groupKey) {
+          <p-card styleClass="station-card">
+            <div class="station-card__head">
+              <div class="min-w-0">
+                <h2 class="station-card__title">{{ group.visitNumber }} · {{ group.patientName }}</h2>
+                <p class="station-card__meta m-0 mt-0.5">{{ group.groupLabel }}</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="station-chip station-chip--tube">
+                  <i class="pi pi-circle-fill text-[8px]"></i>
+                  {{ group.bottleColorName || 'Tube' }}
+                </span>
+                <p-tag
+                  [value]="selectedCount(group) + '/' + group.lines.length + ' selected'"
+                  severity="secondary"
+                />
+              </div>
+            </div>
+            <div class="station-card__body">
+              <p class="m-0 mb-2 text-[11px] text-[#64748b]">
+                {{ group.sampleTypeName }} · {{ group.containerName }} ·
+                <strong class="text-[#0f172a]">{{ group.bottleColorName }}</strong>
+              </p>
+              <ul class="m-0 list-none p-0">
+                @for (line of group.lines; track line.visitServiceId) {
+                  <li class="station-row items-center">
+                    <p-checkbox
+                      [binary]="true"
+                      [ngModel]="selected()[line.visitServiceId] !== false"
+                      (ngModelChange)="toggleLine(line.visitServiceId, $event)"
+                      [inputId]="'c-' + line.visitServiceId"
+                    />
+                    <label [for]="'c-' + line.visitServiceId" class="m-0 flex flex-1 cursor-pointer items-center gap-2">
+                      <span>{{ line.serviceName }}</span>
+                      @if (line.urgent) {
+                        <p-tag value="Urgent" severity="danger" />
+                      }
+                    </label>
+                  </li>
+                }
+              </ul>
+
+              @if (group.canSendOut) {
+                <div class="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-[#e8eef2] bg-[#f8fafc] p-2.5">
                   <p-checkbox
                     [binary]="true"
-                    [ngModel]="selected()[line.visitServiceId] !== false"
-                    (ngModelChange)="toggleLine(line.visitServiceId, $event)"
-                    [inputId]="'c-' + line.visitServiceId"
+                    [ngModel]="!!sendOut()[group.groupKey]"
+                    (ngModelChange)="toggleSendOut(group.groupKey, $event)"
+                    [inputId]="'so-' + group.groupKey"
                   />
-                  <label [for]="'c-' + line.visitServiceId" class="m-0 flex-1 cursor-pointer">
-                    {{ line.serviceName }}
-                    @if (line.urgent) {
-                      <span class="text-[#be123c]"> · Urgent</span>
-                    }
-                  </label>
-                </li>
+                  <label [for]="'so-' + group.groupKey" class="m-0 text-[12px] font-semibold">Send to outside lab</label>
+                  @if (sendOut()[group.groupKey]) {
+                    <p-select
+                      [options]="outsideLabs()"
+                      optionLabel="name"
+                      optionValue="id"
+                      placeholder="Outside lab"
+                      [ngModel]="outsideLabId()[group.groupKey]"
+                      (ngModelChange)="setLab(group.groupKey, $event)"
+                      size="small"
+                      styleClass="min-w-[12rem]"
+                    />
+                  }
+                </div>
               }
-            </ul>
-            @if (group.canSendOut) {
-              <div class="mb-2 flex flex-wrap items-center gap-2">
-                <p-checkbox
-                  [binary]="true"
-                  [ngModel]="!!sendOut()[group.groupKey]"
-                  (ngModelChange)="toggleSendOut(group.groupKey, $event)"
-                  [inputId]="'so-' + group.groupKey"
+
+              <div class="station-actions">
+                <p-button
+                  icon="pi pi-check"
+                  [label]="
+                    'Collect ' +
+                    selectedCount(group) +
+                    ' test' +
+                    (selectedCount(group) === 1 ? '' : 's') +
+                    ' + barcode'
+                  "
+                  size="small"
+                  [loading]="busyKey() === group.groupKey"
+                  [disabled]="selectedCount(group) === 0"
+                  (onClick)="collect(group)"
                 />
-                <label [for]="'so-' + group.groupKey" class="m-0 text-[12px]">Send to outside lab</label>
-                @if (sendOut()[group.groupKey]) {
-                  <p-select
-                    [options]="outsideLabs()"
-                    optionLabel="name"
-                    optionValue="id"
-                    placeholder="Outside lab"
-                    [ngModel]="outsideLabId()[group.groupKey]"
-                    (ngModelChange)="setLab(group.groupKey, $event)"
-                    size="small"
-                    styleClass="min-w-[12rem]"
-                  />
-                }
               </div>
-            }
-            <p-button
-              [label]="
-                'Collect ' + selectedCount(group) + ' test' + (selectedCount(group) === 1 ? '' : 's') + ' + barcode'
-              "
-              size="small"
-              [loading]="busyKey() === group.groupKey"
-              [disabled]="selectedCount(group) === 0"
-              (onClick)="collect(group)"
-            />
-          </div>
-        </section>
-      }
-    </div>
+            </div>
+          </p-card>
+        }
+      </div>
+    }
   </main>
 </div>

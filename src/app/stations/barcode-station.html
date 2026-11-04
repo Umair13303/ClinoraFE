@@ -1,32 +1,94 @@
 <div class="desk-stage">
   <header class="desk-top">
     <div class="desk-top__title">
-      <strong>Barcode reprint</strong>
-      <span>Sample · tube color · tests</span>
+      <strong>Barcode / reject</strong>
+      <span>Reprint labels · reject sample · queue redraw</span>
     </div>
-    <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
+    <div class="station-toolbar">
+      <p-button
+        icon="pi pi-refresh"
+        label="Refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        (onClick)="reload()"
+      />
+    </div>
   </header>
-  <main class="desk-main overflow-auto p-3">
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
     @if (error()) {
-      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
     }
-    <ul class="m-0 grid list-none gap-2 p-0">
-      @for (sample of samples(); track sample.sampleId) {
-        <li class="desk-panel">
-          <div class="desk-panel__body flex items-center justify-between gap-3">
-            <div class="min-w-0">
-              <strong class="block font-mono text-[14px]">{{ sample.barcode }}</strong>
-              <p class="m-0 truncate text-[12px]">{{ sample.patientName }} · {{ sample.visitNumber }}</p>
-              <p class="m-0 text-[11px] text-[#64748b]">
-                {{ sample.sampleTypeName }} · {{ sample.containerName }} · {{ sample.bottleColorName }} ·
-                {{ sample.tests.join(', ') }}
-              </p>
-              <p class="m-0 text-[10px] text-[#94a3b8]">{{ sample.collectedAt | date: 'short' }}</p>
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" styleClass="mb-3 w-full" />
+    }
+
+    <p-card header="Reject settings" subheader="Applied when you reject a sample below" styleClass="station-card mb-3">
+      <div class="station-card__body !pt-0 grid grid-cols-[1.4fr_1fr_auto] gap-2 max-[800px]:grid-cols-1">
+        <p-iconfield>
+          <p-inputicon styleClass="pi pi-exclamation-circle" />
+          <input pInputText [(ngModel)]="rejectReason" placeholder="Reject reason (required)" />
+        </p-iconfield>
+        <p-iconfield>
+          <p-inputicon styleClass="pi pi-user" />
+          <input pInputText [(ngModel)]="rejectedBy" placeholder="Rejected by" />
+        </p-iconfield>
+        <label class="flex items-center gap-2 text-[12px] font-semibold">
+          <p-checkbox [(ngModel)]="redraw" [binary]="true" />
+          Queue redraw
+        </label>
+      </div>
+    </p-card>
+
+    <div class="station-banner">
+      <div>
+        <strong>{{ samples().length }} recent sample{{ samples().length === 1 ? '' : 's' }}</strong>
+        <span>Print Code128 labels or reject and redraw into collection.</span>
+      </div>
+      <p-tag [value]="samples().length ? 'Active' : 'Empty'" [severity]="samples().length ? 'info' : 'secondary'" />
+    </div>
+
+    @if (samples().length === 0) {
+      <div class="station-empty">
+        <i class="pi pi-qrcode"></i>
+        <div>
+          <strong>No barcodes yet</strong>
+          <p>Collected samples from the collection station will list here for reprint or reject.</p>
+        </div>
+      </div>
+    } @else {
+      <div class="grid gap-3">
+        @for (sample of samples(); track sample.sampleId) {
+          <p-card styleClass="station-card">
+            <div class="station-card__body flex flex-wrap items-center justify-between gap-3">
+              <div class="min-w-0">
+                <span class="station-chip station-chip--mono mb-2">{{ sample.barcode }}</span>
+                <h2 class="station-card__title">{{ sample.patientName }}</h2>
+                <p class="station-card__meta m-0 mt-1">
+                  {{ sample.visitNumber }} · {{ sample.sampleTypeName }} · {{ sample.containerName }} ·
+                  <strong class="text-[#0f172a]">{{ sample.bottleColorName }}</strong>
+                </p>
+                <p class="m-0 mt-1 text-[11px] text-[#64748b]">
+                  {{ sample.tests.join(', ') }} · {{ sample.collectedAt | date: 'short' }}
+                </p>
+              </div>
+              <div class="flex shrink-0 flex-wrap gap-2">
+                <p-button icon="pi pi-print" label="Print" size="small" (onClick)="print(sample)" />
+                <p-button
+                  icon="pi pi-times"
+                  label="Reject"
+                  size="small"
+                  severity="danger"
+                  [outlined]="true"
+                  [loading]="rejectingId() === sample.sampleId"
+                  (onClick)="reject(sample)"
+                />
+              </div>
             </div>
-            <p-button label="Print" size="small" (onClick)="print(sample)" />
-          </div>
-        </li>
-      }
-    </ul>
+          </p-card>
+        }
+      </div>
+    }
   </main>
 </div>

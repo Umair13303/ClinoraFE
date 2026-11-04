@@ -7,14 +7,26 @@
         <small>Diagnostics desk</small>
       </div>
     </div>
+
+    @if (branches().length > 0) {
+      <div class="mb-3">
+        <p class="desk-nav-label">Branch</p>
+        <p-select
+          [options]="branches()"
+          optionLabel="name"
+          optionValue="id"
+          [(ngModel)]="selectedBranchId"
+          (ngModelChange)="onBranchChange($event)"
+          size="small"
+          styleClass="w-full desk-branch-select"
+        />
+      </div>
+    }
+
     <p class="desk-nav-label">Workspace</p>
-    <a class="desk-nav-item" routerLink="/desk" routerLinkActive="is-active">Front desk</a>
-    <a class="desk-nav-item" routerLink="/collection" routerLinkActive="is-active">Sample collection</a>
-    <a class="desk-nav-item" routerLink="/barcode" routerLinkActive="is-active">Barcode</a>
-    <a class="desk-nav-item" routerLink="/results" routerLinkActive="is-active">Result entry</a>
-    <a class="desk-nav-item" routerLink="/finalize" routerLinkActive="is-active">Finalize</a>
-    <a class="desk-nav-item" routerLink="/radiology" routerLinkActive="is-active">Radiology</a>
-    <a class="desk-nav-item" routerLink="/outside-lab" routerLinkActive="is-active">Outside lab</a>
+    @for (item of nav(); track item.path) {
+      <a class="desk-nav-item" [routerLink]="item.path" routerLinkActive="is-active">{{ item.label }}</a>
+    }
     <button type="button" class="desk-signout" (click)="signOut()">Sign out</button>
   </aside>
   <div class="desk-outlet">

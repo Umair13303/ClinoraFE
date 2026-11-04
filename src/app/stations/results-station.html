@@ -2,78 +2,278 @@
   <header class="desk-top">
     <div class="desk-top__title">
       <strong>Result entry</strong>
-      <span>Type result · Ctrl+Enter saves</span>
+      <span>Standard · narrative · semen profiles</span>
     </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <input
-        pInputText
-        [ngModel]="filter()"
-        (ngModelChange)="filter.set($event)"
-        placeholder="Visit / patient / barcode / test"
+    <div class="station-toolbar">
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-search" />
+        <input
+          pInputText
+          [ngModel]="filter()"
+          (ngModelChange)="filter.set($event)"
+          placeholder="Visit / patient / barcode"
+        />
+      </p-iconfield>
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-user" />
+        <input pInputText [ngModel]="enteredBy" (ngModelChange)="onEnteredBy($event)" placeholder="Entered by" />
+      </p-iconfield>
+      <p-button
+        icon="pi pi-refresh"
+        label="Refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        (onClick)="reload()"
       />
-      <input
-        pInputText
-        [ngModel]="enteredBy"
-        (ngModelChange)="onEnteredBy($event)"
-        placeholder="Entered by"
-      />
-      <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
     </div>
   </header>
-  <main class="desk-main overflow-auto p-3">
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
     @if (error()) {
-      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
     }
     @if (info()) {
-      <p-message severity="success" [text]="info()!" styleClass="mb-2 w-full" />
+      <p-message severity="success" [text]="info()!" styleClass="mb-3 w-full" />
     }
-    @if (visible().length === 0) {
-      <p class="text-[12px] text-[#64748b]">No in-lab tests waiting for results.</p>
-    }
-    <div class="grid gap-2">
-      @for (item of visible(); track item.visitServiceId) {
-        <section class="desk-panel" (keydown.control.enter)="save(item, $event)">
-          <div class="desk-panel__body grid gap-2">
-            <div class="flex flex-wrap items-center justify-between gap-2 text-[12px]">
-              <strong>
-                {{ item.visitNumber }} · {{ item.patientName }} · {{ item.serviceName }}
-                @if (item.urgent) {
-                  <span class="text-[#be123c]">Urgent</span>
-                }
-              </strong>
-              <span class="font-mono text-[11px] text-[#64748b]">{{ item.barcode || '—' }}</span>
-            </div>
-            <textarea
-              pTextarea
-              rows="2"
-              class="w-full"
-              [ngModel]="draft(item.visitServiceId).text"
-              (ngModelChange)="patch(item.visitServiceId, { text: $event })"
-              placeholder="Result value / findings"
-            ></textarea>
-            <div class="grid grid-cols-[1fr_1fr_auto] items-end gap-2 max-[700px]:grid-cols-1">
-              <input
-                pInputText
-                placeholder="Units (optional)"
-                [ngModel]="draft(item.visitServiceId).units"
-                (ngModelChange)="patch(item.visitServiceId, { units: $event })"
-              />
-              <input
-                pInputText
-                placeholder="Reference (optional)"
-                [ngModel]="draft(item.visitServiceId).range"
-                (ngModelChange)="patch(item.visitServiceId, { range: $event })"
-              />
-              <p-button
-                label="Save"
-                size="small"
-                [loading]="savingId() === item.visitServiceId"
-                (onClick)="save(item)"
-              />
-            </div>
-          </div>
-        </section>
-      }
+
+    <div class="station-banner">
+      <div>
+        <strong>{{ visible().length }} test{{ visible().length === 1 ? '' : 's' }} ready for entry</strong>
+        <span>UI switches by report profile (Standard / Narrative / Semen).</span>
+      </div>
+      <p-tag [value]="visible().length ? 'In lab' : 'Clear'" [severity]="visible().length ? 'info' : 'success'" />
     </div>
+
+    @if (visible().length === 0) {
+      <div class="station-empty">
+        <i class="pi pi-flask"></i>
+        <div>
+          <strong>No in-lab tests waiting</strong>
+          <p>Collected samples move here after collection (or outside receive).</p>
+        </div>
+      </div>
+    } @else {
+      <div class="grid gap-3">
+        @for (item of visible(); track item.visitServiceId) {
+          <p-card styleClass="station-card" (keydown.control.enter)="save(item, $event)">
+            <div class="station-card__head">
+              <div class="min-w-0">
+                <h2 class="station-card__title">{{ item.serviceName }}</h2>
+                <p class="station-card__meta m-0 mt-0.5">
+                  {{ item.visitNumber }} · {{ item.patientName }}
+                  @if (item.barcode) {
+                    <span class="station-chip station-chip--mono ml-1">{{ item.barcode }}</span>
+                  }
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                <p-tag [value]="profileOf(item)" severity="secondary" />
+                @if (item.urgent) {
+                  <p-tag value="Urgent" severity="danger" />
+                }
+                @if (item.isCritical) {
+                  <p-tag value="Critical" severity="danger" />
+                } @else if (item.isAbnormal) {
+                  <p-tag value="Abnormal" severity="warn" />
+                } @else {
+                  <p-tag [value]="item.status" severity="secondary" />
+                }
+              </div>
+            </div>
+
+            <div class="station-card__body grid gap-2">
+              @if (profileOf(item) === 'Narrative') {
+                <p-select
+                  [options]="templatesFor(item)"
+                  optionLabel="name"
+                  optionValue="id"
+                  [ngModel]="selectedNarrativeTemplate()[item.visitServiceId] ?? null"
+                  (ngModelChange)="onNarrativeTemplate(item, $event)"
+                  placeholder="Select histo / cyto template"
+                  [showClear]="true"
+                  size="small"
+                  styleClass="w-full"
+                />
+                <p-editor
+                  class="clinora-editor clinora-editor--compact block"
+                  [ngModel]="draft(item.visitServiceId).text"
+                  (ngModelChange)="patch(item.visitServiceId, { text: $event })"
+                  [modules]="editorModules"
+                  [style]="{ height: '260px' }"
+                  placeholder="Narrative report"
+                />
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <label class="flex items-center gap-2 whitespace-nowrap text-[12px] font-semibold">
+                    <p-checkbox
+                      [binary]="true"
+                      [ngModel]="draft(item.visitServiceId).critical"
+                      (ngModelChange)="patch(item.visitServiceId, { critical: $event })"
+                    />
+                    Critical
+                  </label>
+                  <p-button
+                    icon="pi pi-save"
+                    label="Save narrative"
+                    size="small"
+                    [loading]="savingId() === item.visitServiceId"
+                    (onClick)="save(item)"
+                  />
+                </div>
+              } @else if (profileOf(item) === 'Semen') {
+                <div class="grid grid-cols-2 gap-2 max-[800px]:grid-cols-1">
+                  <input
+                    pInputText
+                    placeholder="Abstinence (days)"
+                    [ngModel]="semen(item.visitServiceId).abstinenceDays"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { abstinenceDays: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Volume (mL)"
+                    [ngModel]="semen(item.visitServiceId).volumeMl"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { volumeMl: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Color"
+                    [ngModel]="semen(item.visitServiceId).color"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { color: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Viscosity"
+                    [ngModel]="semen(item.visitServiceId).viscosity"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { viscosity: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Liquefaction (min)"
+                    [ngModel]="semen(item.visitServiceId).liquefactionMin"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { liquefactionMin: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="pH"
+                    [ngModel]="semen(item.visitServiceId).ph"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { ph: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Concentration (M/mL)"
+                    [ngModel]="semen(item.visitServiceId).concentration"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { concentration: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Total count (M)"
+                    [ngModel]="semen(item.visitServiceId).totalCount"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { totalCount: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Progressive motility %"
+                    [ngModel]="semen(item.visitServiceId).progressiveMotility"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { progressiveMotility: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Non-progressive %"
+                    [ngModel]="semen(item.visitServiceId).nonProgressiveMotility"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { nonProgressiveMotility: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Immotile %"
+                    [ngModel]="semen(item.visitServiceId).immotile"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { immotile: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Normal morphology %"
+                    [ngModel]="semen(item.visitServiceId).normalMorphology"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { normalMorphology: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="WBC"
+                    [ngModel]="semen(item.visitServiceId).wbc"
+                    (ngModelChange)="patchSemen(item.visitServiceId, { wbc: $event })"
+                  />
+                </div>
+                <textarea
+                  pTextarea
+                  rows="3"
+                  class="w-full"
+                  [ngModel]="semen(item.visitServiceId).impression"
+                  (ngModelChange)="patchSemen(item.visitServiceId, { impression: $event })"
+                  placeholder="Impression / comments"
+                ></textarea>
+                <div class="station-actions !mt-0">
+                  <p-button
+                    icon="pi pi-save"
+                    label="Save semen worksheet"
+                    size="small"
+                    [loading]="savingId() === item.visitServiceId"
+                    (onClick)="save(item)"
+                  />
+                </div>
+              } @else {
+                @if ((params()[item.serviceId] || []).length > 0) {
+                  <p-select
+                    [options]="params()[item.serviceId]"
+                    optionLabel="name"
+                    optionValue="id"
+                    [ngModel]="draft(item.visitServiceId).paramId"
+                    (ngModelChange)="onParam(item, $event)"
+                    placeholder="Parameter (optional)"
+                    [showClear]="true"
+                    size="small"
+                    styleClass="w-full sm:w-72"
+                  />
+                }
+                <textarea
+                  pTextarea
+                  rows="2"
+                  class="w-full"
+                  [ngModel]="draft(item.visitServiceId).text"
+                  (ngModelChange)="patch(item.visitServiceId, { text: $event })"
+                  placeholder="Result value / findings"
+                ></textarea>
+                <div class="grid grid-cols-[1fr_1fr_auto_auto] items-end gap-2 max-[900px]:grid-cols-1">
+                  <input
+                    pInputText
+                    placeholder="Units"
+                    [ngModel]="draft(item.visitServiceId).units"
+                    (ngModelChange)="patch(item.visitServiceId, { units: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Reference"
+                    [ngModel]="draft(item.visitServiceId).range"
+                    (ngModelChange)="patch(item.visitServiceId, { range: $event })"
+                  />
+                  <label class="flex items-center gap-2 whitespace-nowrap text-[12px] font-semibold">
+                    <p-checkbox
+                      [binary]="true"
+                      [ngModel]="draft(item.visitServiceId).critical"
+                      (ngModelChange)="patch(item.visitServiceId, { critical: $event })"
+                    />
+                    Critical
+                  </label>
+                  <p-button
+                    icon="pi pi-save"
+                    label="Save"
+                    size="small"
+                    [loading]="savingId() === item.visitServiceId"
+                    (onClick)="save(item)"
+                  />
+                </div>
+              }
+            </div>
+          </p-card>
+        }
+      </div>
+    }
   </main>
 </div>

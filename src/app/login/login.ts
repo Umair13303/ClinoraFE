@@ -64,10 +64,15 @@ export class Login {
               name: payload.name,
               email: payload.email,
               roleId: payload.roleId,
+              branchId: payload.branchId,
+              userTypeId: payload.userTypeId,
             }),
           );
+          if (payload.branchId) {
+            sessionStorage.setItem('clinora.branchId', String(payload.branchId));
+          }
           this.submitting.set(false);
-          void this.router.navigateByUrl('/desk');
+          void this.router.navigateByUrl('/dashboard');
         },
         error: (err: HttpErrorResponse) => {
           this.submitting.set(false);

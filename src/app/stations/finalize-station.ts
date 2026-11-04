@@ -2,9 +2,13 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Button } from 'primeng/button';
+import { Card } from 'primeng/card';
 import { Checkbox } from 'primeng/checkbox';
+import { IconField } from 'primeng/iconfield';
+import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
+import { Tag } from 'primeng/tag';
 
 import { ClinicApi, ReportDto, ResultWorkItem } from '../clinic-api';
 import { printFinalReport } from '../print/print';
@@ -12,7 +16,17 @@ import { readPref, writePref } from './station-prefs';
 
 @Component({
   selector: 'app-finalize-station',
-  imports: [FormsModule, Button, Checkbox, InputText, Message],
+  imports: [
+    FormsModule,
+    Button,
+    Card,
+    Checkbox,
+    IconField,
+    InputIcon,
+    InputText,
+    Message,
+    Tag,
+  ],
   templateUrl: './finalize-station.html',
 })
 export class FinalizeStation implements OnInit {
@@ -99,13 +113,48 @@ export class FinalizeStation implements OnInit {
       this.error.set('No report to reprint yet.');
       return;
     }
-    printFinalReport(report);
+    if (printFinalReport(report)) {
+      this.api.markReportPrinted(report.id).subscribe();
+    }
+  }
+
+  protected pendingLines(visitId: number): ResultWorkItem[] {
+    return this.selectedLines(visitId).filter((line) => line.status !== 'Finalized');
+  }
+
+  protected amend(line: ResultWorkItem): void {
+    const next = prompt(`Amend result for ${line.serviceName}`, line.existingResultText ?? '');
+    if (next == null || !next.trim()) {
+      return;
+    }
+    this.error.set('');
+    this.api
+      .saveResult({
+        visitServiceId: line.visitServiceId,
+        resultText: next.trim(),
+        units: line.existingUnits ?? null,
+        referenceRange: line.existingReferenceRange ?? null,
+        parameterName: line.existingParameterName ?? null,
+        enteredByName: this.doctor || null,
+        amend: true,
+        source: 'Amend',
+        isCritical: !!line.isCritical,
+      })
+      .subscribe({
+        next: (res) => {
+          this.info.set(res.message);
+          this.reload();
+        },
+        error: (err) => {
+          this.error.set(typeof err.error?.message === 'string' ? err.error.message : 'Amend failed.');
+        },
+      });
   }
 
   protected finalize(visitId: number): void {
-    const picked = this.selectedLines(visitId);
+    const picked = this.pendingLines(visitId);
     if (picked.length === 0) {
-      this.error.set('Select at least one line.');
+      this.error.set('Select at least one non-finalized line.');
       return;
     }
 
@@ -131,12 +180,14 @@ export class FinalizeStation implements OnInit {
           this.busyVisit.set(null);
           this.lastReport.set(report);
           const printed = printFinalReport(report);
+          if (printed) {
+            this.api.markReportPrinted(report.id).subscribe();
+          }
           this.info.set(
             printed
               ? `Finalized ${report.visitNumber} · print dialog opened`
               : `Finalized ${report.visitNumber} · use Reprint report if dialog was blocked`,
           );
-          this.api.markReportPrinted(report.id).subscribe();
           this.reload();
         },
         error: (err) => {

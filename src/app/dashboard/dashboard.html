@@ -1,0 +1,186 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Operations</strong>
+      <span>Live branch queues · Angular · PrimeNG</span>
+    </div>
+    <div class="flex items-center gap-2">
+      @if (refreshedAt(); as at) {
+        <span class="hidden text-[11px] text-[#64748b] sm:inline">Updated {{ at | date: 'shortTime' }}</span>
+      }
+      <p-button
+        icon="pi pi-refresh"
+        label="Refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        [loading]="loading()"
+        (onClick)="reload()"
+      />
+      <a routerLink="/desk" class="dash-action-link">
+        <p-button icon="pi pi-plus" label="New visit" size="small" />
+      </a>
+    </div>
+  </header>
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
+    }
+
+    <section class="dash-hero mb-4">
+      <div class="min-w-0">
+        <p class="dash-eyebrow m-0">Clinora diagnostics</p>
+        <h1 class="dash-title m-0">Good day, {{ userName() }}</h1>
+        <p class="dash-sub m-0 mt-1">
+          Track collection, lab, radiology, and send-outs from one branch view.
+        </p>
+      </div>
+      <div class="dash-hero__stats">
+        <div class="dash-stat">
+          <span class="dash-stat__label">Open work</span>
+          <strong class="dash-stat__value">{{ totalOpen() }}</strong>
+        </div>
+        <div class="dash-stat">
+          <span class="dash-stat__label">Attention</span>
+          <strong class="dash-stat__value" [class.is-alert]="attentionCount() > 0">{{ attentionCount() }}</strong>
+        </div>
+      </div>
+    </section>
+
+    @if (loading() && !summary()) {
+      <div class="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        @for (_ of [1, 2, 3, 4, 5, 6]; track $index) {
+          <p-card styleClass="dash-card-shell">
+            <div class="flex items-start justify-between gap-3">
+              <p-skeleton shape="circle" size="2.5rem" />
+              <p-skeleton width="4.5rem" height="1.4rem" />
+            </div>
+            <p-skeleton width="60%" height="0.75rem" styleClass="mt-4 mb-2" />
+            <p-skeleton width="3rem" height="2rem" />
+          </p-card>
+        }
+      </div>
+    } @else {
+      <div class="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        @for (card of metrics(); track card.key) {
+          <a [routerLink]="card.route" class="dash-card-link" [attr.aria-label]="card.label">
+            <p-card styleClass="dash-card-shell dash-card-shell--{{ card.tone }}">
+              <div class="flex items-start justify-between gap-3">
+                <span class="dash-icon dash-icon--{{ card.tone }}" aria-hidden="true">
+                  <i [class]="card.icon"></i>
+                </span>
+                <p-tag [value]="tagLabel(card)" [severity]="severityFor(card)" />
+              </div>
+              <p class="dash-card-label m-0 mt-3">{{ card.label }}</p>
+              <p class="dash-card-hint m-0">{{ card.hint }}</p>
+              <div class="mt-2 flex items-end justify-between gap-2">
+                <strong class="dash-card-value" [class.is-alert]="card.alert && card.value > 0">{{
+                  card.value
+                }}</strong>
+                <span class="dash-card-go">
+                  Open
+                  <i class="pi pi-arrow-right text-[10px]"></i>
+                </span>
+              </div>
+            </p-card>
+          </a>
+        }
+      </div>
+    }
+
+    <div class="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
+      <p-card header="Queue mix" subheader="Share of open work across stations" styleClass="dash-panel">
+        @if (loading() && !summary()) {
+          <p-skeleton height="0.75rem" styleClass="mb-3" />
+          <p-skeleton height="0.75rem" styleClass="mb-3" />
+          <p-skeleton height="0.75rem" />
+        } @else if (totalOpen() === 0) {
+          <div class="dash-empty">
+            <i class="pi pi-check-circle text-[#0f766e]"></i>
+            <div>
+              <strong>All queues clear</strong>
+              <p class="m-0 text-[12px] text-[#64748b]">New visits will show here as soon as they enter the lab flow.</p>
+            </div>
+          </div>
+        } @else {
+          <ul class="m-0 list-none space-y-3 p-0">
+            @for (row of queueShare(); track row.label) {
+              <li>
+                <div class="mb-1 flex items-center justify-between gap-2 text-[12px]">
+                  <span class="font-semibold text-[#334155]">{{ row.label }}</span>
+                  <span class="tabular-nums text-[#64748b]">{{ row.value }} · {{ row.pct }}%</span>
+                </div>
+                <p-progressBar
+                  [value]="row.pct"
+                  [showValue]="false"
+                  styleClass="dash-bar dash-bar--{{ row.tone }}"
+                />
+              </li>
+            }
+          </ul>
+        }
+      </p-card>
+
+      <p-card header="Quick actions" subheader="Jump to the next station" styleClass="dash-panel">
+        <div class="grid gap-2">
+          <a routerLink="/desk" class="dash-action-link">
+            <p-button
+              label="Front desk · register"
+              icon="pi pi-id-card"
+              severity="secondary"
+              [outlined]="true"
+              styleClass="w-full justify-start"
+            />
+          </a>
+          <a routerLink="/collection" class="dash-action-link">
+            <p-button
+              label="Collect samples"
+              icon="pi pi-inbox"
+              severity="secondary"
+              [outlined]="true"
+              styleClass="w-full justify-start"
+            />
+          </a>
+          <a routerLink="/results" class="dash-action-link">
+            <p-button
+              label="Enter results"
+              icon="pi pi-pencil"
+              severity="secondary"
+              [outlined]="true"
+              styleClass="w-full justify-start"
+            />
+          </a>
+          <a routerLink="/finalize" class="dash-action-link">
+            <p-button
+              label="Doctor finalize"
+              icon="pi pi-verified"
+              severity="secondary"
+              [outlined]="true"
+              styleClass="w-full justify-start"
+            />
+          </a>
+          <a routerLink="/reports" class="dash-action-link">
+            <p-button
+              label="Report collection"
+              icon="pi pi-print"
+              severity="secondary"
+              [outlined]="true"
+              styleClass="w-full justify-start"
+            />
+          </a>
+          <p-divider />
+          <a routerLink="/masters" class="dash-action-link">
+            <p-button
+              label="Service masters"
+              icon="pi pi-cog"
+              severity="contrast"
+              [text]="true"
+              styleClass="w-full justify-start"
+            />
+          </a>
+        </div>
+      </p-card>
+    </div>
+  </main>
+</div>

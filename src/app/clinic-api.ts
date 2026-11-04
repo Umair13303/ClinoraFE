@@ -3,6 +3,8 @@ import { inject, Injectable } from '@angular/core';
 
 import { API_BASE_URL } from './app.config';
 
+export type ReportProfile = 'Standard' | 'Narrative' | 'Semen' | 'Radiology';
+
 export type ClinicService = {
   id: number;
   name: string;
@@ -11,6 +13,7 @@ export type ClinicService = {
   normalMinutes: number;
   urgentMinutes: number;
   pathway: string;
+  reportProfile?: ReportProfile | string;
   sampleTypeId: number | null;
   containerId: number | null;
   bottleColorId: number | null;
@@ -18,6 +21,20 @@ export type ClinicService = {
   sampleGroupCode: string | null;
   canSendOut: boolean;
   defaultOutsideLabId: number | null;
+};
+
+export type ServiceParameter = {
+  id: number;
+  name: string;
+  unit: string | null;
+  refLow: number | null;
+  refHigh: number | null;
+  sortOrder: number;
+};
+
+export type ServiceAdmin = ClinicService & {
+  status: boolean;
+  parameters: ServiceParameter[];
 };
 
 export type StaffMember = {
@@ -43,6 +60,8 @@ export type PatientSummary = {
 export type VisitSummary = {
   id: number;
   visitNumber: string;
+  tokenNo: number | null;
+  visitStatus: string;
   patientId: number;
   patientName: string;
   referredBy: string | null;
@@ -83,6 +102,7 @@ export type CreateVisitRequest = {
 export type VisitReceipt = {
   id: number;
   visitNumber: string;
+  tokenNo: number | null;
   patientName: string;
   net: number;
   amountReceived: number;
@@ -91,6 +111,23 @@ export type VisitReceipt = {
 
 export type LookupItem = { id: number; code: string; name: string };
 export type OutsideLab = { id: number; name: string; phone: string | null };
+export type BranchDto = { id: number; code: string; name: string; contact: string | null; address: string | null };
+
+export type ClinicSettings = {
+  name: string;
+  address: string | null;
+  phone: string | null;
+  roleStations: Record<string, string[]>;
+};
+
+export type WorklistSummary = {
+  awaitingCollection: number;
+  inLab: number;
+  sentOut: number;
+  awaitingFinalize: number;
+  radiology: number;
+  outsideOverdue: number;
+};
 
 export type SampleSetup = {
   sampleTypes: LookupItem[];
@@ -155,25 +192,47 @@ export type SampleBarcode = {
 export type ResultWorkItem = {
   visitServiceId: number;
   visitId: number;
+  serviceId: number;
   visitNumber: string;
   patientName: string;
   serviceName: string;
   status: string;
+  reportProfile?: ReportProfile | string;
   urgent: boolean;
   barcode?: string | null;
   isSendOut: boolean;
   existingResultText?: string | null;
+  existingUnits?: string | null;
+  existingReferenceRange?: string | null;
+  existingParameterName?: string | null;
+  isAbnormal?: boolean;
+  isCritical?: boolean;
 };
 
 export type RadiologyWorkItem = {
   visitServiceId: number;
   visitId: number;
+  serviceId: number;
   visitNumber: string;
   patientName: string;
   serviceName: string;
   status: string;
   urgent: boolean;
   readyBy: string | null;
+  existingFindings?: string | null;
+  templateName?: string | null;
+};
+
+export type RadiologyTemplate = {
+  id: number;
+  name: string;
+  modality: string;
+  profile?: ReportProfile | string;
+  serviceIds: number[];
+  serviceNames: string[];
+  serviceName: string | null;
+  body: string;
+  status: boolean;
 };
 
 export type ReportDto = {
@@ -193,13 +252,17 @@ export type ReportDto = {
     resultText: string | null;
     units: string | null;
     referenceRange: string | null;
+    reportProfile?: ReportProfile | string;
     urgent: boolean;
+    isAbnormal?: boolean;
+    isCritical?: boolean;
   }>;
 };
 
 export type VisitSlips = {
   visitId: number;
   visitNumber: string;
+  tokenNo: number | null;
   createdAt: string;
   patientName: string;
   phone: string;
@@ -241,6 +304,8 @@ export type Shipment = {
   notes: string | null;
   sentAt: string;
   receivedAt: string | null;
+  expectedAt: string | null;
+  isOverdue: boolean;
   items: Array<{
     sampleId: number;
     barcode: string;
@@ -256,12 +321,55 @@ export class ClinicApi {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = inject(API_BASE_URL);
 
+  clinicSettings() {
+    return this.http.get<ClinicSettings>(`${this.baseUrl}/api/clinic/settings`);
+  }
+
+  branches() {
+    return this.http.get<BranchDto[]>(`${this.baseUrl}/api/branches`);
+  }
+
+  worklistSummary() {
+    return this.http.get<WorklistSummary>(`${this.baseUrl}/api/worklist/summary`);
+  }
+
   services(query = '') {
     let params = new HttpParams();
     if (query.trim()) {
       params = params.set('query', query.trim());
     }
     return this.http.get<ClinicService[]>(`${this.baseUrl}/api/services`, { params });
+  }
+
+  adminServices() {
+    return this.http.get<ServiceAdmin[]>(`${this.baseUrl}/api/admin/services`);
+  }
+
+  createAdminService(body: Partial<ServiceAdmin> & { name: string }) {
+    return this.http.post<ServiceAdmin>(`${this.baseUrl}/api/admin/services`, body);
+  }
+
+  updateAdminService(id: number, body: Partial<ServiceAdmin> & { name: string }) {
+    return this.http.put<ServiceAdmin>(`${this.baseUrl}/api/admin/services/${id}`, body);
+  }
+
+  upsertLookup(kind: 'sample-types' | 'containers' | 'bottle-colors' | 'sample-groups', body: {
+    id?: number | null;
+    code: string;
+    name: string;
+    status?: boolean;
+  }) {
+    return this.http.post<LookupItem>(`${this.baseUrl}/api/admin/lookups/${kind}`, body);
+  }
+
+  upsertOutsideLab(body: {
+    id?: number | null;
+    name: string;
+    phone?: string | null;
+    address?: string | null;
+    status?: boolean;
+  }) {
+    return this.http.post<OutsideLab>(`${this.baseUrl}/api/admin/lookups/outside-labs`, body);
   }
 
   staff(query = '') {
@@ -284,6 +392,10 @@ export class ClinicApi {
 
   createVisit(body: CreateVisitRequest) {
     return this.http.post<VisitReceipt>(`${this.baseUrl}/api/visits`, body);
+  }
+
+  cancelVisit(id: number) {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/api/visits/${id}/cancel`, {});
   }
 
   visitSlips(visitId: number) {
@@ -316,6 +428,10 @@ export class ClinicApi {
     return this.http.post<SampleBarcode>(`${this.baseUrl}/api/samples/collect`, body);
   }
 
+  rejectSample(id: number, body: { reason: string; rejectedByName?: string | null; redraw?: boolean }) {
+    return this.http.post<{ message: string }>(`${this.baseUrl}/api/samples/${id}/reject`, body);
+  }
+
   sampleBarcode(id: number) {
     return this.http.get<SampleBarcode>(`${this.baseUrl}/api/samples/${id}/barcode`);
   }
@@ -340,6 +456,12 @@ export class ClinicApi {
     return this.http.get<RadiologyWorkItem[]>(`${this.baseUrl}/api/worklist/radiology`);
   }
 
+  resultParameters(serviceId: number) {
+    return this.http.get<Array<{ id: number; name: string; unit: string | null; refLow: number | null; refHigh: number | null }>>(
+      `${this.baseUrl}/api/results/parameters/${serviceId}`,
+    );
+  }
+
   saveResult(body: {
     visitServiceId: number;
     resultText: string;
@@ -347,8 +469,16 @@ export class ClinicApi {
     referenceRange?: string | null;
     enteredByName?: string | null;
     source?: string;
+    parameterName?: string | null;
+    refLow?: number | null;
+    refHigh?: number | null;
+    isCritical?: boolean;
+    amend?: boolean;
   }) {
-    return this.http.post<{ message: string }>(`${this.baseUrl}/api/results`, body);
+    return this.http.post<{ message: string; isAbnormal?: boolean; isCritical?: boolean }>(
+      `${this.baseUrl}/api/results`,
+      body,
+    );
   }
 
   finalizeReport(body: {
@@ -364,19 +494,98 @@ export class ClinicApi {
     return this.http.get<ReportDto>(`${this.baseUrl}/api/reports/${id}`);
   }
 
+  reportsByVisit(visitId: number) {
+    return this.http.get<ReportDto[]>(`${this.baseUrl}/api/reports/by-visit/${visitId}`);
+  }
+
+  todayReports() {
+    return this.http.get<ReportDto[]>(`${this.baseUrl}/api/reports/today`);
+  }
+
+  lookupReports(query: string) {
+    const params = new HttpParams().set('q', query.trim());
+    return this.http.get<ReportDto[]>(`${this.baseUrl}/api/reports/lookup`, { params });
+  }
+
   markReportPrinted(id: number) {
     return this.http.post<{ printCount: number }>(`${this.baseUrl}/api/reports/${id}/printed`, {});
   }
 
-  radiologyComplete(body: { visitServiceId: number; findings?: string | null; performedByName?: string | null }) {
-    return this.http.post<{ message: string }>(`${this.baseUrl}/api/radiology/complete`, body);
+  radiologyTemplates(serviceId?: number | null, profile: string = 'Radiology') {
+    let params = new HttpParams().set('profile', profile);
+    if (serviceId) {
+      params = params.set('serviceId', String(serviceId));
+    }
+    return this.http.get<RadiologyTemplate[]>(`${this.baseUrl}/api/radiology/templates`, { params });
+  }
+
+  radiologyTemplatesAll(profile?: string | null) {
+    let params = new HttpParams();
+    if (profile) {
+      params = params.set('profile', profile);
+    }
+    return this.http.get<RadiologyTemplate[]>(`${this.baseUrl}/api/radiology/templates/all`, { params });
+  }
+
+  createRadiologyTemplate(payload: {
+    name: string;
+    modality: string;
+    profile?: string;
+    serviceIds: number[];
+    body: string;
+    status: boolean;
+  }) {
+    return this.http.post<RadiologyTemplate>(`${this.baseUrl}/api/radiology/templates`, payload);
+  }
+
+  updateRadiologyTemplate(
+    id: number,
+    payload: {
+      name: string;
+      modality: string;
+      profile?: string;
+      serviceIds: number[];
+      body: string;
+      status: boolean;
+    },
+  ) {
+    return this.http.put<RadiologyTemplate>(`${this.baseUrl}/api/radiology/templates/${id}`, payload);
+  }
+
+  radiologyComplete(body: {
+    visitServiceId: number;
+    findings?: string | null;
+    performedByName?: string | null;
+    templateId?: number | null;
+    templateName?: string | null;
+  }) {
+    return this.http.post<{ message: string; templateName?: string | null }>(
+      `${this.baseUrl}/api/radiology/complete`,
+      body,
+    );
+  }
+
+  radiologySign(body: {
+    visitServiceId: number;
+    findings?: string | null;
+    performedByName?: string | null;
+    templateId?: number | null;
+    templateName?: string | null;
+  }) {
+    return this.http.post<ReportDto>(`${this.baseUrl}/api/radiology/sign`, body);
   }
 
   shipments() {
     return this.http.get<Shipment[]>(`${this.baseUrl}/api/outside-lab/shipments`);
   }
 
-  createShipment(body: { outsideLabId: number; awb?: string | null; notes?: string | null; sampleIds: number[] }) {
+  createShipment(body: {
+    outsideLabId: number;
+    awb?: string | null;
+    notes?: string | null;
+    expectedAt?: string | null;
+    sampleIds: number[];
+  }) {
     return this.http.post<Shipment>(`${this.baseUrl}/api/outside-lab/shipments`, body);
   }
 

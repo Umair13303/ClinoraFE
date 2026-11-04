@@ -4,65 +4,132 @@
       <strong>Doctor finalize</strong>
       <span>Review · sign · print report</span>
     </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <input
-        pInputText
-        [ngModel]="filter()"
-        (ngModelChange)="filter.set($event)"
-        placeholder="Visit / patient / test"
-      />
-      <input pInputText [ngModel]="doctor" (ngModelChange)="onDoctor($event)" placeholder="Doctor name" />
+    <div class="station-toolbar">
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-search" />
+        <input
+          pInputText
+          [ngModel]="filter()"
+          (ngModelChange)="filter.set($event)"
+          placeholder="Visit / patient / test"
+        />
+      </p-iconfield>
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-user" />
+        <input pInputText [ngModel]="doctor" (ngModelChange)="onDoctor($event)" placeholder="Doctor name" />
+      </p-iconfield>
       @if (lastReport()) {
-        <p-button label="Reprint report" severity="secondary" [outlined]="true" size="small" (onClick)="reprintLast()" />
+        <p-button
+          icon="pi pi-print"
+          label="Reprint"
+          severity="secondary"
+          [outlined]="true"
+          size="small"
+          (onClick)="reprintLast()"
+        />
       }
-      <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
+      <p-button
+        icon="pi pi-refresh"
+        label="Refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        (onClick)="reload()"
+      />
     </div>
   </header>
-  <main class="desk-main overflow-auto p-3">
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
     @if (error()) {
-      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
     }
     @if (info()) {
-      <p-message severity="success" [text]="info()!" styleClass="mb-2 w-full" />
+      <p-message severity="success" [text]="info()!" styleClass="mb-3 w-full" />
     }
-    @if (visitGroups().length === 0) {
-      <p class="text-[12px] text-[#64748b]">Nothing waiting for finalize.</p>
-    }
-    <div class="grid gap-3">
-      @for (group of visitGroups(); track group.visitId) {
-        <section class="desk-panel">
-          <header class="desk-panel__head">
-            <h2>{{ group.visitNumber }} · {{ group.patientName }}</h2>
-            <span>{{ selectedLines(group.visitId).length }}/{{ group.lines.length }}</span>
-          </header>
-          <div class="desk-panel__body">
-            <ul class="m-0 mb-2 list-none p-0">
-              @for (line of group.lines; track line.visitServiceId) {
-                <li class="flex items-start gap-2 border-b border-[#eef2f6] py-1.5 text-[12px]">
-                  <p-checkbox
-                    [binary]="true"
-                    [ngModel]="!!selected()[line.visitServiceId]"
-                    (ngModelChange)="toggle(line.visitServiceId, $event)"
-                    [inputId]="'f-' + line.visitServiceId"
-                  />
-                  <label [for]="'f-' + line.visitServiceId" class="m-0 min-w-0 flex-1 cursor-pointer">
-                    <strong>{{ line.serviceName }}</strong>
-                    <span class="text-[#64748b]"> · {{ line.status }}</span>
-                    <p class="m-0 text-[11px] text-[#475569]">{{ line.existingResultText || '—' }}</p>
-                  </label>
-                </li>
-              }
-            </ul>
-            <p-button
-              label="Finalize + print report"
-              size="small"
-              [loading]="busyVisit() === group.visitId"
-              [disabled]="selectedLines(group.visitId).length === 0"
-              (onClick)="finalize(group.visitId)"
-            />
-          </div>
-        </section>
-      }
+
+    <div class="station-banner">
+      <div>
+        <strong>{{ visitGroups().length }} visit{{ visitGroups().length === 1 ? '' : 's' }} in finalize queue</strong>
+        <span>Select lines to sign. Finalized lines can be amended if needed.</span>
+      </div>
+      <p-tag
+        [value]="visitGroups().length ? 'Review' : 'Clear'"
+        [severity]="visitGroups().length ? 'warn' : 'success'"
+      />
     </div>
+
+    @if (visitGroups().length === 0) {
+      <div class="station-empty">
+        <i class="pi pi-verified"></i>
+        <div>
+          <strong>Nothing waiting for finalize</strong>
+          <p>Result-entered and imaged tests appear here for doctor sign-off.</p>
+        </div>
+      </div>
+    } @else {
+      <div class="grid gap-3">
+        @for (group of visitGroups(); track group.visitId) {
+          <p-card styleClass="station-card">
+            <div class="station-card__head">
+              <div>
+                <h2 class="station-card__title">{{ group.visitNumber }} · {{ group.patientName }}</h2>
+                <p class="station-card__meta m-0 mt-0.5">{{ group.lines.length }} line(s)</p>
+              </div>
+              <p-tag
+                [value]="pendingLines(group.visitId).length + ' pending'"
+                [severity]="pendingLines(group.visitId).length ? 'info' : 'success'"
+              />
+            </div>
+            <div class="station-card__body">
+              <ul class="m-0 list-none p-0">
+                @for (line of group.lines; track line.visitServiceId) {
+                  <li class="station-row">
+                    <p-checkbox
+                      [binary]="true"
+                      [ngModel]="!!selected()[line.visitServiceId]"
+                      (ngModelChange)="toggle(line.visitServiceId, $event)"
+                      [inputId]="'f-' + line.visitServiceId"
+                      [disabled]="line.status === 'Finalized'"
+                    />
+                    <label [for]="'f-' + line.visitServiceId" class="m-0 min-w-0 flex-1 cursor-pointer">
+                      <div class="mb-1 flex flex-wrap items-center gap-1.5">
+                        <strong>{{ line.serviceName }}</strong>
+                        <p-tag [value]="line.status" severity="secondary" />
+                        @if (line.isCritical) {
+                          <p-tag value="Critical" severity="danger" />
+                        } @else if (line.isAbnormal) {
+                          <p-tag value="Abnormal" severity="warn" />
+                        }
+                      </div>
+                      <p class="m-0 text-[11px] leading-snug text-[#475569]">{{ line.existingResultText || '—' }}</p>
+                    </label>
+                    @if (line.status === 'Finalized') {
+                      <p-button
+                        icon="pi pi-pencil"
+                        label="Amend"
+                        size="small"
+                        severity="secondary"
+                        [outlined]="true"
+                        (onClick)="amend(line)"
+                      />
+                    }
+                  </li>
+                }
+              </ul>
+              <div class="station-actions">
+                <p-button
+                  icon="pi pi-check-circle"
+                  label="Finalize + print report"
+                  size="small"
+                  [loading]="busyVisit() === group.visitId"
+                  [disabled]="pendingLines(group.visitId).length === 0"
+                  (onClick)="finalize(group.visitId)"
+                />
+              </div>
+            </div>
+          </p-card>
+        }
+      </div>
+    }
   </main>
 </div>

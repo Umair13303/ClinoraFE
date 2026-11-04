@@ -3,17 +3,34 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Button } from 'primeng/button';
+import { Card } from 'primeng/card';
 import { Checkbox } from 'primeng/checkbox';
+import { IconField } from 'primeng/iconfield';
+import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
+import { Tag } from 'primeng/tag';
 import { Textarea } from 'primeng/textarea';
 
 import { ClinicApi, OutsideLab, SendOutSample, Shipment } from '../clinic-api';
 
 @Component({
   selector: 'app-outside-lab-station',
-  imports: [FormsModule, Button, Checkbox, InputText, Message, Select, Textarea, DatePipe],
+  imports: [
+    FormsModule,
+    Button,
+    Card,
+    Checkbox,
+    IconField,
+    InputIcon,
+    InputText,
+    Message,
+    Select,
+    Tag,
+    Textarea,
+    DatePipe,
+  ],
   templateUrl: './outside-lab-station.html',
 })
 export class OutsideLabStation implements OnInit {
@@ -33,6 +50,7 @@ export class OutsideLabStation implements OnInit {
   protected outsideLabId: number | null = null;
   protected awb = '';
   protected notes = '';
+  protected expectedAt = '';
 
   protected readonly visiblePending = computed(() => {
     const q = this.filter().trim().toLowerCase();
@@ -98,13 +116,21 @@ export class OutsideLabStation implements OnInit {
   }
 
   protected ship(): void {
-    const sampleIds = this.visiblePending()
-      .filter((s) => this.picked()[s.sampleId])
-      .map((s) => s.sampleId);
-    if (!this.outsideLabId || sampleIds.length === 0) {
+    const selected = this.visiblePending().filter((s) => this.picked()[s.sampleId]);
+    if (!this.outsideLabId || selected.length === 0) {
       this.error.set('Pick outside lab and at least one sample.');
       return;
     }
+    const mismatched = selected.filter(
+      (s) => s.outsideLabId != null && s.outsideLabId !== this.outsideLabId,
+    );
+    if (mismatched.length > 0) {
+      this.error.set(
+        `Uncheck samples meant for another lab (${mismatched.map((s) => s.barcode).join(', ')}).`,
+      );
+      return;
+    }
+    const sampleIds = selected.map((s) => s.sampleId);
     this.shipping.set(true);
     this.error.set('');
     this.api
@@ -112,6 +138,7 @@ export class OutsideLabStation implements OnInit {
         outsideLabId: this.outsideLabId,
         awb: this.awb || null,
         notes: this.notes || null,
+        expectedAt: this.expectedAt ? new Date(this.expectedAt).toISOString() : null,
         sampleIds,
       })
       .subscribe({
@@ -120,6 +147,7 @@ export class OutsideLabStation implements OnInit {
           this.info.set(`Shipped ${sampleIds.length} sample(s).`);
           this.awb = '';
           this.notes = '';
+          this.expectedAt = '';
           this.reload();
         },
         error: (err) => {
@@ -130,20 +158,25 @@ export class OutsideLabStation implements OnInit {
   }
 
   protected receive(shipment: Shipment): void {
-    const items = shipment.items.map((item) => ({
-      visitServiceId: item.visitServiceId,
-      resultText: (this.receiveDrafts()[item.visitServiceId] || '').trim(),
-    }));
+    const items = shipment.items
+      .map((item) => ({
+        visitServiceId: item.visitServiceId,
+        resultText: (this.receiveDrafts()[item.visitServiceId] || '').trim(),
+      }))
+      .filter((i) => i.resultText);
+    if (items.length === 0) {
+      this.error.set('Paste at least one outside result before marking received.');
+      return;
+    }
     this.receivingId.set(shipment.id);
     this.error.set('');
     this.api.receiveShipment(shipment.id, { notes: null, items }).subscribe({
-      next: () => {
+      next: (updated) => {
         this.receivingId.set(null);
-        const withResults = items.filter((i) => i.resultText).length;
         this.info.set(
-          withResults
-            ? `Received #${shipment.id} · ${withResults} result(s) entered`
-            : `Received #${shipment.id} · open Result entry to fill values`,
+          updated.status === 'Received'
+            ? `Received #${shipment.id} · all results entered`
+            : `Partial receive #${shipment.id} · ${items.length} result(s) saved`,
         );
         this.reload();
       },

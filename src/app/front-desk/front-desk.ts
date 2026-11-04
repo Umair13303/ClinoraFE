@@ -376,6 +376,30 @@ export class FrontDesk implements OnInit {
     });
   }
 
+  protected reprintSlips(visitId: number): void {
+    this.api.visitSlips(visitId).subscribe({
+      next: (slips) => printVisitSlips(slips),
+      error: () => this.submitError.set('Could not load slips.'),
+    });
+  }
+
+  protected cancelVisit(visit: VisitSummary): void {
+    if (!confirm(`Cancel ${visit.visitNumber}?`)) {
+      return;
+    }
+    this.api.cancelVisit(visit.id).subscribe({
+      next: () => {
+        this.submitError.set('');
+        this.openToday();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.submitError.set(
+          typeof err.error?.message === 'string' ? err.error.message : 'Cancel failed.',
+        );
+      },
+    });
+  }
+
   protected searchPatients(value: string): void {
     this.patientQuery.set(value);
     if (value.trim().length < 2) {

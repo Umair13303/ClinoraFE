@@ -2,10 +2,14 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Button } from 'primeng/button';
+import { Card } from 'primeng/card';
 import { Checkbox } from 'primeng/checkbox';
+import { IconField } from 'primeng/iconfield';
+import { InputIcon } from 'primeng/inputicon';
 import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
+import { Tag } from 'primeng/tag';
 
 import { ClinicApi, CollectionGroup, OutsideLab, SampleBarcode, SampleSetup } from '../clinic-api';
 import { printBarcodeLabel } from '../print/print';
@@ -13,7 +17,18 @@ import { readPref, writePref } from './station-prefs';
 
 @Component({
   selector: 'app-collection-station',
-  imports: [FormsModule, Button, Checkbox, InputText, Message, Select],
+  imports: [
+    FormsModule,
+    Button,
+    Card,
+    Checkbox,
+    IconField,
+    InputIcon,
+    InputText,
+    Message,
+    Select,
+    Tag,
+  ],
   templateUrl: './collection-station.html',
 })
 export class CollectionStation implements OnInit {

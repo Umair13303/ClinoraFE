@@ -2,66 +2,144 @@
   <header class="desk-top">
     <div class="desk-top__title">
       <strong>Radiology</strong>
-      <span>No sample · image → Finalize</span>
+      <span>Template → edit → radiologist sign</span>
     </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <input
-        pInputText
-        [ngModel]="filter()"
-        (ngModelChange)="filter.set($event)"
-        placeholder="Visit / patient / study"
+    <div class="station-toolbar">
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-search" />
+        <input
+          pInputText
+          [ngModel]="filter()"
+          (ngModelChange)="filter.set($event)"
+          placeholder="Visit / patient / study"
+        />
+      </p-iconfield>
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-user" />
+        <input
+          pInputText
+          [ngModel]="performedBy"
+          (ngModelChange)="onPerformedBy($event)"
+          placeholder="Radiologist"
+        />
+      </p-iconfield>
+      <p-button
+        icon="pi pi-refresh"
+        label="Refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        (onClick)="reload()"
       />
-      <input
-        pInputText
-        [ngModel]="performedBy"
-        (ngModelChange)="onPerformedBy($event)"
-        placeholder="Radiologist / tech"
-      />
-      <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
     </div>
   </header>
-  <main class="desk-main overflow-auto p-3">
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
     @if (error()) {
-      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
     }
     @if (info()) {
-      <p-message severity="success" [text]="info()!" styleClass="mb-2 w-full" />
+      <p-message severity="success" [text]="info()!" styleClass="mb-3 w-full" />
     }
+
+    <div class="station-banner">
+      <div>
+        <strong>{{ visible().length }} stud{{ visible().length === 1 ? 'y' : 'ies' }} in imaging queue</strong>
+        <span>Pick a report template, edit findings, then sign as radiologist.</span>
+      </div>
+      <p-tag [value]="visible().length ? 'Imaging' : 'Clear'" [severity]="visible().length ? 'info' : 'success'" />
+    </div>
+
+    @if (signedReport(); as report) {
+      <div class="mb-3 rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-3 text-[12.5px] text-[#14532d]">
+        <strong class="block">Signed report #{{ report.id }}</strong>
+        <span>{{ report.visitNumber }} · {{ report.patientName }} · {{ report.finalizedByName }}</span>
+        @for (line of report.lines; track line.serviceName) {
+          <div
+            class="rad-html-preview mt-2 max-h-40 overflow-auto rounded border border-[#d1fae5] bg-white p-2 text-[12px] text-[#064e3b]"
+            [innerHTML]="previewHtml(line.resultText)"
+          ></div>
+        }
+      </div>
+    }
+
     @if (visible().length === 0) {
-      <p class="text-[12px] text-[#64748b]">No radiology studies in queue.</p>
-    }
-    <div class="grid gap-2">
-      @for (item of visible(); track item.visitServiceId) {
-        <section class="desk-panel">
-          <div class="desk-panel__body grid gap-2">
-            <div class="text-[12px]">
-              <strong>{{ item.visitNumber }} · {{ item.patientName }}</strong>
-              <span class="text-[#64748b]"> · {{ item.serviceName }} · {{ item.status }}</span>
-              @if (item.urgent) {
-                <span class="text-[#be123c]"> · Urgent</span>
-              }
+      <div class="station-empty">
+        <i class="pi pi-image"></i>
+        <div>
+          <strong>No radiology studies in queue</strong>
+          <p>Radiology pathway visits land here after front desk registration.</p>
+        </div>
+      </div>
+    } @else {
+      <div class="grid gap-3">
+        @for (item of visible(); track item.visitServiceId) {
+          <p-card styleClass="station-card">
+            <div class="station-card__head">
+              <div>
+                <h2 class="station-card__title">{{ item.serviceName }}</h2>
+                <p class="station-card__meta m-0 mt-0.5">
+                  {{ item.visitNumber }} · {{ item.patientName }}
+                  @if (item.readyBy) {
+                    · Ready by {{ item.readyBy }}
+                  }
+                  @if (item.templateName) {
+                    · Template: {{ item.templateName }}
+                  }
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                @if (item.urgent) {
+                  <p-tag value="Urgent" severity="danger" />
+                }
+                <p-tag
+                  [value]="item.status === 'AwaitingImaging' ? 'Awaiting imaging' : 'Draft ready'"
+                  [severity]="item.status === 'AwaitingImaging' ? 'warn' : 'success'"
+                />
+              </div>
             </div>
-            @if (item.status === 'AwaitingImaging') {
-              <textarea
-                pTextarea
-                rows="2"
-                class="w-full"
+            <div class="station-card__body grid gap-2">
+              <p-select
+                [options]="templatesFor(item)"
+                optionLabel="name"
+                optionValue="id"
+                [ngModel]="selectedTemplateId()[item.visitServiceId] ?? null"
+                (ngModelChange)="onTemplateSelect(item, $event)"
+                placeholder="Select report template"
+                [showClear]="true"
+                styleClass="w-full"
+                size="small"
+              />
+              <p-editor
+                class="clinora-editor clinora-editor--compact block"
                 [ngModel]="findings()[item.visitServiceId] || ''"
                 (ngModelChange)="setFindings(item.visitServiceId, $event)"
-                placeholder="Findings / notes (optional)"
-              ></textarea>
-              <p-button
-                label="Mark imaged"
-                size="small"
-                [loading]="busyId() === item.visitServiceId"
-                (onClick)="complete(item)"
+                [modules]="editorModules"
+                [style]="{ height: '260px' }"
+                placeholder="Select a template, then edit the report"
               />
-            } @else {
-              <p class="m-0 text-[11px] text-[#64748b]">Ready — open Finalize to sign and print.</p>
-            }
-          </div>
-        </section>
-      }
-    </div>
+              <div class="station-actions !mt-0">
+                <p-button
+                  icon="pi pi-save"
+                  label="Save draft"
+                  severity="secondary"
+                  [outlined]="true"
+                  size="small"
+                  [loading]="busyId() === item.visitServiceId"
+                  (onClick)="saveDraft(item)"
+                />
+                <p-button
+                  icon="pi pi-verified"
+                  label="Sign report"
+                  size="small"
+                  [loading]="busyId() === item.visitServiceId"
+                  (onClick)="sign(item)"
+                />
+              </div>
+            </div>
+          </p-card>
+        }
+      </div>
+    }
   </main>
 </div>

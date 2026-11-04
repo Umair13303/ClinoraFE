@@ -2,52 +2,93 @@
   <header class="desk-top">
     <div class="desk-top__title">
       <strong>Outside lab</strong>
-      <span>Send samples · paste results on receive</span>
+      <span>Ship samples · receive · paste results</span>
     </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <input
-        pInputText
-        [ngModel]="filter()"
-        (ngModelChange)="filter.set($event)"
-        placeholder="Barcode / visit / patient"
+    <div class="station-toolbar">
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-search" />
+        <input
+          pInputText
+          [ngModel]="filter()"
+          (ngModelChange)="filter.set($event)"
+          placeholder="Barcode / visit / patient"
+        />
+      </p-iconfield>
+      <p-button
+        icon="pi pi-refresh"
+        label="Refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        (onClick)="reload()"
       />
-      <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
     </div>
   </header>
-  <main class="desk-main overflow-auto p-3">
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
     @if (error()) {
-      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
     }
     @if (info()) {
-      <p-message severity="success" [text]="info()!" styleClass="mb-2 w-full" />
+      <p-message severity="success" [text]="info()!" styleClass="mb-3 w-full" />
     }
 
-    <section class="desk-panel mb-3">
-      <header class="desk-panel__head">
-        <h2>Pending send-out</h2>
-        <span>{{ pickedCount() }} selected</span>
-      </header>
-      <div class="desk-panel__body">
+    <div class="mb-3 grid gap-3 lg:grid-cols-2">
+      <div class="station-banner !mb-0">
+        <div>
+          <strong>{{ visiblePending().length }} pending send-out</strong>
+          <span>{{ pickedCount() }} selected for shipment</span>
+        </div>
+        <p-tag
+          [value]="visiblePending().length ? 'Ready to ship' : 'None'"
+          [severity]="visiblePending().length ? 'warn' : 'secondary'"
+        />
+      </div>
+      <div class="station-banner !mb-0">
+        <div>
+          <strong>{{ shipments().length }} shipment{{ shipments().length === 1 ? '' : 's' }}</strong>
+          <span>Track expected return and mark received.</span>
+        </div>
+        <p-tag [value]="shipments().length ? 'Tracking' : 'Empty'" severity="info" />
+      </div>
+    </div>
+
+    <p-card styleClass="station-card mb-3">
+      <div class="station-card__head">
+        <div>
+          <h2 class="station-card__title">Pending send-out</h2>
+          <p class="station-card__meta m-0 mt-0.5">Collected samples flagged for outside lab</p>
+        </div>
+        <p-tag [value]="pickedCount() + ' selected'" severity="secondary" />
+      </div>
+      <div class="station-card__body">
         @if (visiblePending().length === 0) {
-          <p class="m-0 text-[12px] text-[#64748b]">No collected send-out samples waiting.</p>
+          <div class="station-empty !min-h-[120px] border-0 bg-transparent p-2">
+            <i class="pi pi-send"></i>
+            <div>
+              <strong>No send-out samples waiting</strong>
+              <p>Mark send-out during collection to queue samples here.</p>
+            </div>
+          </div>
         } @else {
-          <ul class="m-0 mb-2 list-none p-0">
+          <ul class="m-0 mb-3 list-none p-0">
             @for (sample of visiblePending(); track sample.sampleId) {
-              <li class="flex items-center gap-2 border-b border-[#eef2f6] py-1.5 text-[12px]">
+              <li class="station-row items-center">
                 <p-checkbox
                   [binary]="true"
                   [ngModel]="!!picked()[sample.sampleId]"
                   (ngModelChange)="toggle(sample.sampleId, $event)"
                   [inputId]="'s-' + sample.sampleId"
                 />
-                <label [for]="'s-' + sample.sampleId" class="m-0 cursor-pointer">
-                  <strong class="font-mono">{{ sample.barcode }}</strong> · {{ sample.visitNumber }} ·
-                  {{ sample.patientName }} · {{ sample.tests.join(', ') }}
+                <label [for]="'s-' + sample.sampleId" class="m-0 min-w-0 flex-1 cursor-pointer">
+                  <span class="station-chip station-chip--mono">{{ sample.barcode }}</span>
+                  <span class="ml-2">{{ sample.visitNumber }} · {{ sample.patientName }}</span>
+                  <span class="mt-1 block text-[11px] text-[#64748b]">{{ sample.tests.join(', ') }}</span>
                 </label>
               </li>
             }
           </ul>
-          <div class="mb-2 grid grid-cols-[1.2fr_1fr_1fr] gap-2 max-[900px]:grid-cols-1">
+          <div class="mb-3 grid grid-cols-2 gap-2 xl:grid-cols-4 max-[900px]:grid-cols-1">
             <p-select
               [options]="labs()"
               optionLabel="name"
@@ -55,11 +96,14 @@
               [(ngModel)]="outsideLabId"
               placeholder="Outside lab"
               size="small"
+              styleClass="w-full"
             />
-            <input pInputText [(ngModel)]="awb" placeholder="AWB / courier ref" />
-            <input pInputText [(ngModel)]="notes" placeholder="Notes" />
+            <input pInputText [(ngModel)]="awb" placeholder="AWB / courier ref" class="w-full" />
+            <input pInputText type="datetime-local" [(ngModel)]="expectedAt" class="w-full" />
+            <input pInputText [(ngModel)]="notes" placeholder="Notes" class="w-full" />
           </div>
           <p-button
+            icon="pi pi-truck"
             [label]="'Create shipment (' + pickedCount() + ')'"
             size="small"
             [loading]="shipping()"
@@ -68,40 +112,69 @@
           />
         }
       </div>
-    </section>
+    </p-card>
 
-    <section class="desk-panel">
-      <header class="desk-panel__head"><h2>Shipments</h2></header>
-      <div class="desk-panel__body grid gap-3">
+    <p-card styleClass="station-card">
+      <div class="station-card__head">
+        <div>
+          <h2 class="station-card__title">Shipments</h2>
+          <p class="station-card__meta m-0 mt-0.5">Sent / received history for this branch</p>
+        </div>
+      </div>
+      <div class="station-card__body grid gap-3">
         @if (shipments().length === 0) {
-          <p class="m-0 text-[12px] text-[#64748b]">No shipments yet.</p>
+          <div class="station-empty !min-h-[120px] border-0 bg-transparent p-2">
+            <i class="pi pi-box"></i>
+            <div>
+              <strong>No shipments yet</strong>
+              <p>Create a shipment from pending send-out samples above.</p>
+            </div>
+          </div>
         }
         @for (shipment of shipments(); track shipment.id) {
-          <div class="rounded-lg border border-[#e8eef2] p-2.5">
-            <div class="mb-2 flex flex-wrap items-center justify-between gap-2 text-[12px]">
-              <strong>#{{ shipment.id }} · {{ shipment.outsideLabName }} · {{ shipment.status }}</strong>
-              <span class="text-[#64748b]">{{ shipment.sentAt | date: 'short' }}</span>
+          <div class="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <strong class="text-[13px]">#{{ shipment.id }} · {{ shipment.outsideLabName }}</strong>
+                <p-tag
+                  [value]="shipment.status"
+                  [severity]="shipment.status === 'Received' ? 'success' : 'warn'"
+                />
+                @if (shipment.isOverdue) {
+                  <p-tag value="Overdue" severity="danger" />
+                }
+              </div>
+              <span class="text-[11px] text-[#64748b]">
+                Sent {{ shipment.sentAt | date: 'short' }}
+                @if (shipment.expectedAt) {
+                  · Due {{ shipment.expectedAt | date: 'short' }}
+                }
+              </span>
             </div>
             <ul class="m-0 mb-2 list-none p-0">
               @for (item of shipment.items; track item.visitServiceId) {
-                <li class="border-b border-[#eef2f6] py-1.5 text-[12px]">
-                  <span class="font-mono">{{ item.barcode }}</span> · {{ item.patientName }} · {{ item.serviceName }}
-                  @if (shipment.status !== 'Received') {
-                    <textarea
-                      pTextarea
-                      rows="1"
-                      class="mt-1 w-full"
-                      [ngModel]="receiveDrafts()[item.visitServiceId] || ''"
-                      (ngModelChange)="setReceiveDraft(item.visitServiceId, $event)"
-                      placeholder="Paste outside result (optional)"
-                    ></textarea>
-                  }
+                <li class="station-row !py-2">
+                  <div class="min-w-0 flex-1">
+                    <span class="station-chip station-chip--mono">{{ item.barcode }}</span>
+                    <span class="ml-2 text-[12px]">{{ item.patientName }} · {{ item.serviceName }}</span>
+                    @if (shipment.status !== 'Received') {
+                      <textarea
+                        pTextarea
+                        rows="1"
+                        class="mt-2 w-full"
+                        [ngModel]="receiveDrafts()[item.visitServiceId] || ''"
+                        (ngModelChange)="setReceiveDraft(item.visitServiceId, $event)"
+                        placeholder="Paste outside result (optional)"
+                      ></textarea>
+                    }
+                  </div>
                 </li>
               }
             </ul>
             @if (shipment.status !== 'Received') {
               <p-button
-                label="Mark received"
+                icon="pi pi-download"
+                [label]="shipment.status === 'Partial' ? 'Save more results' : 'Receive with pasted results'"
                 size="small"
                 [loading]="receivingId() === shipment.id"
                 (onClick)="receive(shipment)"
@@ -110,6 +183,6 @@
           </div>
         }
       </div>
-    </section>
+    </p-card>
   </main>
 </div>

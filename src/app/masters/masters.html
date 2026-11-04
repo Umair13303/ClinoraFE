@@ -1,0 +1,780 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Masters</strong>
+      <span>Catalog · radiology templates · sample setup</span>
+    </div>
+    <div class="station-toolbar">
+      <p-selectbutton
+        [options]="tabOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="tab()"
+        (ngModelChange)="tab.set($event)"
+        size="small"
+      />
+      <p-button
+        icon="pi pi-refresh"
+        label="Refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        [loading]="loading()"
+        (onClick)="reload()"
+      />
+    </div>
+  </header>
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
+    }
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" styleClass="mb-3 w-full" />
+    }
+
+    <section class="masters-hero mb-4">
+      <div class="min-w-0">
+        <p class="masters-eyebrow m-0">Configuration</p>
+        <h1 class="masters-title m-0">Service & sample masters</h1>
+        <p class="masters-sub m-0 mt-1">
+          Keep front desk, collection tubes, and result parameters aligned from one place.
+        </p>
+      </div>
+      <div class="masters-hero__stats">
+        <div class="masters-stat">
+          <span>Services</span>
+          <strong>{{ stats().services }}</strong>
+        </div>
+        <div class="masters-stat">
+          <span>Lookups</span>
+          <strong>{{ stats().lookups }}</strong>
+        </div>
+        <div class="masters-stat">
+          <span>Rad. templates</span>
+          <strong>{{ stats().templates }}</strong>
+        </div>
+        <div class="masters-stat">
+          <span>Outside labs</span>
+          <strong>{{ stats().outsideLabs }}</strong>
+        </div>
+      </div>
+    </section>
+
+    @if (tab() === 'radiology') {
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <strong class="block text-[14px]">Radiology report templates</strong>
+          <span class="text-[12px] text-[#64748b]">
+            Techs pick a template on the radiology station, edit findings, then the radiologist signs.
+          </span>
+        </div>
+        <p-button icon="pi pi-plus" label="New template" size="small" (onClick)="startNewTemplate('Radiology')" />
+      </div>
+
+      <p-card styleClass="station-card masters-table-card">
+        <p-table
+          [value]="templates()"
+          styleClass="text-sm"
+          [tableStyle]="{ 'min-width': '48rem' }"
+          [paginator]="templates().length > 10"
+          [rows]="10"
+          dataKey="id"
+        >
+          <ng-template #header>
+            <tr>
+              <th style="min-width: 12rem">Template</th>
+              <th>Modality</th>
+              <th>Services</th>
+              <th>Status</th>
+              <th style="width: 7rem"></th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-row>
+            <tr>
+              <td>
+                <strong class="block text-[13px]">{{ row.name }}</strong>
+                <span class="line-clamp-2 text-[11px] text-[#64748b]">{{ templatePreview(row.body) }}</span>
+              </td>
+              <td>
+                <p-tag [value]="row.modality" severity="warn" />
+              </td>
+              <td>
+                @if (row.serviceNames?.length) {
+                  <div class="flex flex-wrap gap-1">
+                    @for (name of row.serviceNames; track name) {
+                      <p-tag [value]="name" severity="secondary" />
+                    }
+                  </div>
+                } @else {
+                  <span class="text-[12px] text-[#64748b]">All radiology services</span>
+                }
+              </td>
+              <td>
+                <p-tag [value]="row.status ? 'Active' : 'Off'" [severity]="row.status ? 'success' : 'secondary'" />
+              </td>
+              <td>
+                <p-button
+                  icon="pi pi-pencil"
+                  label="Edit"
+                  size="small"
+                  severity="secondary"
+                  [text]="true"
+                  (onClick)="editTemplate(row)"
+                />
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="5" class="py-8 text-center text-[#64748b]">No radiology templates yet.</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    }
+
+    @if (tab() === 'narrative') {
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <strong class="block text-[14px]">Lab narrative templates</strong>
+          <span class="text-[12px] text-[#64748b]">
+            Histopathology / cytology report bodies used on the Results station.
+          </span>
+        </div>
+        <p-button icon="pi pi-plus" label="New histo template" size="small" (onClick)="startNewTemplate('Narrative')" />
+      </div>
+
+      <p-card styleClass="station-card masters-table-card">
+        <p-table
+          [value]="narrativeTemplates()"
+          styleClass="text-sm"
+          [tableStyle]="{ 'min-width': '48rem' }"
+          [paginator]="narrativeTemplates().length > 10"
+          [rows]="10"
+          dataKey="id"
+        >
+          <ng-template #header>
+            <tr>
+              <th style="min-width: 12rem">Template</th>
+              <th>Type</th>
+              <th>Services</th>
+              <th>Status</th>
+              <th style="width: 7rem"></th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-row>
+            <tr>
+              <td>
+                <strong class="block text-[13px]">{{ row.name }}</strong>
+                <span class="line-clamp-2 text-[11px] text-[#64748b]">{{ templatePreview(row.body) }}</span>
+              </td>
+              <td>
+                <p-tag [value]="row.modality" severity="warn" />
+              </td>
+              <td>
+                @if (row.serviceNames?.length) {
+                  <div class="flex flex-wrap gap-1">
+                    @for (name of row.serviceNames; track name) {
+                      <p-tag [value]="name" severity="secondary" />
+                    }
+                  </div>
+                } @else {
+                  <span class="text-[12px] text-[#64748b]">All narrative services</span>
+                }
+              </td>
+              <td>
+                <p-tag [value]="row.status ? 'Active' : 'Off'" [severity]="row.status ? 'success' : 'secondary'" />
+              </td>
+              <td>
+                <p-button
+                  icon="pi pi-pencil"
+                  label="Edit"
+                  size="small"
+                  severity="secondary"
+                  [text]="true"
+                  (onClick)="editTemplate(row)"
+                />
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="5" class="py-8 text-center text-[#64748b]">No narrative templates yet.</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    }
+
+    @if (tab() === 'services') {
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <p-iconfield>
+            <p-inputicon styleClass="pi pi-search" />
+            <input
+              pInputText
+              [ngModel]="serviceQuery()"
+              (ngModelChange)="serviceQuery.set($event)"
+              placeholder="Search name / category"
+            />
+          </p-iconfield>
+          <p-select
+            [options]="pathwayFilterOptions"
+            optionLabel="label"
+            optionValue="value"
+            [ngModel]="pathwayFilter()"
+            (ngModelChange)="pathwayFilter.set($event)"
+            placeholder="Pathway"
+            size="small"
+            styleClass="min-w-[10rem]"
+          />
+          <p-tag [value]="filteredServices().length + ' shown'" severity="secondary" />
+        </div>
+        <p-button icon="pi pi-plus" label="New service" size="small" (onClick)="startNew()" />
+      </div>
+
+      <div class="mb-3 flex flex-wrap gap-2">
+        <button type="button" class="masters-pill" [class.is-on]="!pathwayFilter()" (click)="pathwayFilter.set(null)">
+          All · {{ stats().services }}
+        </button>
+        <button
+          type="button"
+          class="masters-pill"
+          [class.is-on]="pathwayFilter() === 'Laboratory'"
+          (click)="pathwayFilter.set('Laboratory')"
+        >
+          Lab · {{ stats().lab }}
+        </button>
+        <button
+          type="button"
+          class="masters-pill"
+          [class.is-on]="pathwayFilter() === 'Radiology'"
+          (click)="pathwayFilter.set('Radiology')"
+        >
+          Radiology · {{ stats().radiology }}
+        </button>
+        <button
+          type="button"
+          class="masters-pill"
+          [class.is-on]="pathwayFilter() === 'Consultation'"
+          (click)="pathwayFilter.set('Consultation')"
+        >
+          Consult · {{ stats().consultation }}
+        </button>
+      </div>
+
+      <p-card styleClass="station-card masters-table-card">
+        <p-table
+          [value]="filteredServices()"
+          styleClass="text-sm"
+          [tableStyle]="{ 'min-width': '52rem' }"
+          [paginator]="filteredServices().length > 10"
+          [rows]="10"
+          [rowsPerPageOptions]="[10, 20, 50]"
+          dataKey="id"
+        >
+          <ng-template #header>
+            <tr>
+              <th style="min-width: 14rem">Service</th>
+              <th>Pathway</th>
+              <th>Report</th>
+              <th>Fee</th>
+              <th>TAT (N/U)</th>
+              <th>Sample</th>
+              <th>Params</th>
+              <th>Status</th>
+              <th style="width: 7rem"></th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-row>
+            <tr>
+              <td>
+                <strong class="block text-[13px]">{{ row.name }}</strong>
+                <span class="text-[11px] text-[#64748b]">{{ row.category }}</span>
+                @if (row.canSendOut) {
+                  <p-tag value="Send-out" severity="warn" styleClass="ml-1" />
+                }
+              </td>
+              <td>
+                <p-tag [value]="row.pathway" [severity]="pathwaySeverity(row.pathway)" />
+              </td>
+              <td>
+                <p-tag
+                  [value]="row.reportProfile || 'Standard'"
+                  [severity]="profileSeverity(row.reportProfile)"
+                />
+              </td>
+              <td class="tabular-nums font-semibold">Rs {{ row.fee | number: '1.0-0' }}</td>
+              <td class="tabular-nums text-[#475569]">{{ row.normalMinutes }}m / {{ row.urgentMinutes }}m</td>
+              <td class="text-[11px] text-[#64748b]">
+                @if (row.pathway === 'Laboratory') {
+                  {{ row.sampleTypeId ? 'Configured' : 'Missing setup' }}
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                <span class="masters-count">{{ row.parameters?.length || 0 }}</span>
+              </td>
+              <td>
+                <p-tag
+                  [value]="row.status ? 'Active' : 'Off'"
+                  [severity]="row.status ? 'success' : 'secondary'"
+                />
+              </td>
+              <td>
+                <p-button
+                  icon="pi pi-pencil"
+                  label="Edit"
+                  size="small"
+                  [outlined]="true"
+                  (onClick)="edit(row)"
+                />
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr>
+              <td colspan="8">
+                <div class="station-empty !min-h-[120px] border-0 bg-transparent">
+                  <i class="pi pi-inbox"></i>
+                  <div>
+                    <strong>No services match</strong>
+                    <p>Clear filters or add a new service.</p>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    } @else {
+      <div class="grid gap-3 xl:grid-cols-[1.2fr_1fr]">
+        <p-card styleClass="station-card">
+          <div class="station-card__head">
+            <div>
+              <h2 class="station-card__title">Sample lookups</h2>
+              <p class="station-card__meta m-0 mt-0.5">Shared by collection and service defaults</p>
+            </div>
+            <p-tag [value]="lookupItems().length + ' items'" severity="secondary" />
+          </div>
+          <div class="station-card__body grid gap-3">
+            <div class="flex flex-wrap gap-2">
+              @for (kind of lookupKinds; track kind.value) {
+                <button
+                  type="button"
+                  class="masters-pill"
+                  [class.is-on]="lookupKind === kind.value"
+                  (click)="lookupKind = kind.value"
+                >
+                  <i [class]="kind.icon"></i>
+                  {{ kind.label }}
+                </button>
+              }
+            </div>
+
+            <div class="masters-form-panel">
+              <p class="masters-section-label m-0 mb-3">Add {{ lookupKindLabel().toLowerCase() }}</p>
+              <div class="grid grid-cols-[0.9fr_1.4fr_auto] items-end gap-2 max-[700px]:grid-cols-1">
+                <p-floatlabel variant="on">
+                  <input pInputText id="lookupCode" [(ngModel)]="lookupCode" class="w-full" autocomplete="off" />
+                  <label for="lookupCode">Code</label>
+                </p-floatlabel>
+                <p-floatlabel variant="on">
+                  <input pInputText id="lookupName" [(ngModel)]="lookupName" class="w-full" autocomplete="off" />
+                  <label for="lookupName">Name</label>
+                </p-floatlabel>
+                <p-button
+                  icon="pi pi-plus"
+                  label="Add"
+                  size="small"
+                  [loading]="saving()"
+                  (onClick)="saveLookup()"
+                />
+              </div>
+            </div>
+
+            <ul class="masters-list m-0 list-none p-0">
+              @for (item of lookupItems(); track item.id) {
+                <li class="masters-list__item">
+                  <span class="station-chip station-chip--mono">{{ item.code }}</span>
+                  <span class="min-w-0 flex-1 truncate font-semibold text-[12.5px]">{{ item.name }}</span>
+                </li>
+              } @empty {
+                <li class="station-empty !min-h-[100px] border-0 bg-transparent">
+                  <strong>No {{ lookupKindLabel().toLowerCase() }} yet</strong>
+                </li>
+              }
+            </ul>
+          </div>
+        </p-card>
+
+        <p-card styleClass="station-card">
+          <div class="station-card__head">
+            <div>
+              <h2 class="station-card__title">Outside labs</h2>
+              <p class="station-card__meta m-0 mt-0.5">Used for send-out collection and shipments</p>
+            </div>
+            <p-tag [value]="labs().length + ' labs'" severity="secondary" />
+          </div>
+          <div class="station-card__body grid gap-3">
+            <div class="masters-form-panel">
+              <p class="masters-section-label m-0 mb-3">Add outside lab</p>
+              <div class="grid grid-cols-[1.4fr_1fr_auto] items-end gap-2 max-[700px]:grid-cols-1">
+                <p-floatlabel variant="on">
+                  <input pInputText id="labName" [(ngModel)]="labName" class="w-full" autocomplete="off" />
+                  <label for="labName">Lab name</label>
+                </p-floatlabel>
+                <p-floatlabel variant="on">
+                  <input pInputText id="labPhone" [(ngModel)]="labPhone" class="w-full" autocomplete="off" />
+                  <label for="labPhone">Phone</label>
+                </p-floatlabel>
+                <p-button
+                  icon="pi pi-plus"
+                  label="Add"
+                  size="small"
+                  [loading]="saving()"
+                  (onClick)="saveLab()"
+                />
+              </div>
+            </div>
+
+            <ul class="masters-list m-0 list-none p-0">
+              @for (lab of labs(); track lab.id) {
+                <li class="masters-list__item">
+                  <span class="masters-lab-mark"><i class="pi pi-building"></i></span>
+                  <div class="min-w-0 flex-1">
+                    <strong class="block text-[12.5px]">{{ lab.name }}</strong>
+                    <span class="text-[11px] text-[#64748b]">{{ lab.phone || 'No phone' }}</span>
+                  </div>
+                </li>
+              } @empty {
+                <li class="station-empty !min-h-[100px] border-0 bg-transparent">
+                  <strong>No outside labs yet</strong>
+                </li>
+              }
+            </ul>
+          </div>
+        </p-card>
+      </div>
+    }
+  </main>
+</div>
+
+<p-dialog
+  [header]="editing?.id ? 'Edit service' : 'New service'"
+  [modal]="true"
+  [visible]="editorOpen()"
+  (visibleChange)="onEditorVisible($event)"
+  [style]="{ width: 'min(760px, 96vw)' }"
+  [breakpoints]="{ '960px': '96vw' }"
+  styleClass="masters-dialog"
+>
+  @if (editing; as form) {
+    <div class="grid gap-4">
+      <section class="masters-form-panel">
+        <p class="masters-section-label">Basics</p>
+        <div class="mt-3 grid grid-cols-2 gap-3 max-[700px]:grid-cols-1">
+          <p-floatlabel variant="on">
+            <input pInputText id="svcName" [(ngModel)]="form.name" class="w-full" autocomplete="off" />
+            <label for="svcName">Service name</label>
+          </p-floatlabel>
+          <p-floatlabel variant="on">
+            <input pInputText id="svcCategory" [(ngModel)]="form.category" class="w-full" autocomplete="off" />
+            <label for="svcCategory">Category</label>
+          </p-floatlabel>
+          <p-floatlabel variant="on">
+            <p-select
+              inputId="svcPathway"
+              [options]="pathways"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="form.pathway"
+              (ngModelChange)="onPathwayChange($event)"
+              styleClass="w-full"
+            />
+            <label for="svcPathway">Pathway</label>
+          </p-floatlabel>
+          @if (form.pathway === 'Laboratory') {
+            <p-floatlabel variant="on">
+              <p-select
+                inputId="svcProfile"
+                [options]="reportProfiles"
+                optionLabel="label"
+                optionValue="value"
+                [(ngModel)]="form.reportProfile"
+                styleClass="w-full"
+              />
+              <label for="svcProfile">Report profile</label>
+            </p-floatlabel>
+          }
+          <p-floatlabel variant="on">
+            <p-inputNumber
+              inputId="svcFee"
+              [(ngModel)]="form.fee"
+              mode="currency"
+              currency="PKR"
+              locale="en-PK"
+              styleClass="w-full"
+            />
+            <label for="svcFee">Fee</label>
+          </p-floatlabel>
+        </div>
+      </section>
+
+      <section class="masters-form-panel">
+        <p class="masters-section-label">Turnaround (minutes)</p>
+        <div class="mt-3 grid grid-cols-2 gap-3 max-[700px]:grid-cols-1">
+          <p-floatlabel variant="on">
+            <p-inputNumber inputId="svcNormal" [(ngModel)]="form.normalMinutes" [min]="0" styleClass="w-full" />
+            <label for="svcNormal">Normal TAT</label>
+          </p-floatlabel>
+          <p-floatlabel variant="on">
+            <p-inputNumber inputId="svcUrgent" [(ngModel)]="form.urgentMinutes" [min]="0" styleClass="w-full" />
+            <label for="svcUrgent">Urgent TAT</label>
+          </p-floatlabel>
+        </div>
+      </section>
+
+      @if (form.pathway === 'Laboratory') {
+        <section class="masters-form-panel">
+          <p class="masters-section-label">Sample defaults</p>
+          <div class="mt-3 grid grid-cols-2 gap-3 max-[700px]:grid-cols-1">
+            <p-floatlabel variant="on">
+              <p-select
+                inputId="svcType"
+                [options]="setup()?.sampleTypes || []"
+                optionLabel="name"
+                optionValue="id"
+                [(ngModel)]="form.sampleTypeId"
+                [showClear]="true"
+                styleClass="w-full"
+              />
+              <label for="svcType">Sample type</label>
+            </p-floatlabel>
+            <p-floatlabel variant="on">
+              <p-select
+                inputId="svcContainer"
+                [options]="setup()?.containers || []"
+                optionLabel="name"
+                optionValue="id"
+                [(ngModel)]="form.containerId"
+                [showClear]="true"
+                styleClass="w-full"
+              />
+              <label for="svcContainer">Container</label>
+            </p-floatlabel>
+            <p-floatlabel variant="on">
+              <p-select
+                inputId="svcColor"
+                [options]="setup()?.bottleColors || []"
+                optionLabel="name"
+                optionValue="id"
+                [(ngModel)]="form.bottleColorId"
+                [showClear]="true"
+                styleClass="w-full"
+              />
+              <label for="svcColor">Bottle color</label>
+            </p-floatlabel>
+            <p-floatlabel variant="on">
+              <p-select
+                inputId="svcGroup"
+                [options]="setup()?.sampleGroups || []"
+                optionLabel="name"
+                optionValue="id"
+                [(ngModel)]="form.sampleGroupId"
+                [showClear]="true"
+                styleClass="w-full"
+              />
+              <label for="svcGroup">Sample group</label>
+            </p-floatlabel>
+            <p-floatlabel variant="on">
+              <p-select
+                inputId="svcLab"
+                [options]="labs()"
+                optionLabel="name"
+                optionValue="id"
+                [(ngModel)]="form.defaultOutsideLabId"
+                [showClear]="true"
+                styleClass="w-full"
+              />
+              <label for="svcLab">Default outside lab</label>
+            </p-floatlabel>
+          </div>
+        </section>
+      }
+
+      <section class="masters-form-panel">
+        <p class="masters-section-label">Flags</p>
+        <div class="mt-3 flex flex-wrap gap-6">
+          <label class="masters-switch">
+            <p-toggleswitch [(ngModel)]="form.status" />
+            <span>Active in catalog</span>
+          </label>
+          @if (form.pathway === 'Laboratory') {
+            <label class="masters-switch">
+              <p-toggleswitch [(ngModel)]="form.canSendOut" />
+              <span>Can send out</span>
+            </label>
+          }
+        </div>
+      </section>
+
+      @if (form.pathway === 'Laboratory') {
+        <section class="masters-form-panel">
+          <div class="mb-3 flex items-center justify-between gap-2">
+            <p class="masters-section-label m-0">Result parameters</p>
+            <p-tag [value]="form.parameters.length + ' defined'" severity="secondary" />
+          </div>
+          <ul class="masters-list m-0 mb-3 list-none p-0">
+            @for (p of form.parameters; track $index) {
+              <li class="masters-list__item">
+                <div class="min-w-0 flex-1">
+                  <strong class="text-[12.5px]">{{ p.name }}</strong>
+                  <div class="text-[11px] text-[#64748b]">
+                    {{ p.unit || 'No unit' }} · Ref {{ p.refLow ?? '—' }}–{{ p.refHigh ?? '—' }}
+                  </div>
+                </div>
+                <p-button
+                  icon="pi pi-trash"
+                  severity="danger"
+                  [text]="true"
+                  size="small"
+                  (onClick)="removeParam($index)"
+                />
+              </li>
+            } @empty {
+              <li class="text-[12px] text-[#64748b]">No parameters yet — optional for multi-analyte tests.</li>
+            }
+          </ul>
+          <div class="grid grid-cols-[1.3fr_0.7fr_0.7fr_0.7fr_auto] items-end gap-2 max-[800px]:grid-cols-1">
+            <p-floatlabel variant="on">
+              <input pInputText id="paramName" [(ngModel)]="paramDraft.name" class="w-full" />
+              <label for="paramName">Name</label>
+            </p-floatlabel>
+            <p-floatlabel variant="on">
+              <input pInputText id="paramUnit" [(ngModel)]="paramDraft.unit" class="w-full" />
+              <label for="paramUnit">Unit</label>
+            </p-floatlabel>
+            <p-floatlabel variant="on">
+              <p-inputNumber
+                inputId="paramLow"
+                [(ngModel)]="paramDraft.refLow"
+                [minFractionDigits]="0"
+                styleClass="w-full"
+              />
+              <label for="paramLow">Low</label>
+            </p-floatlabel>
+            <p-floatlabel variant="on">
+              <p-inputNumber
+                inputId="paramHigh"
+                [(ngModel)]="paramDraft.refHigh"
+                [minFractionDigits]="0"
+                styleClass="w-full"
+              />
+              <label for="paramHigh">High</label>
+            </p-floatlabel>
+            <p-button
+              icon="pi pi-plus"
+              label="Add"
+              size="small"
+              severity="secondary"
+              [outlined]="true"
+              (onClick)="addParam()"
+            />
+          </div>
+        </section>
+      }
+    </div>
+
+    <div class="mt-4 flex justify-end gap-2 border-t border-[#e8eef2] pt-3">
+      <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="closeEditor()" />
+      <p-button icon="pi pi-save" label="Save service" [loading]="saving()" (onClick)="saveService()" />
+    </div>
+  }
+</p-dialog>
+
+<p-dialog
+  [header]="editingTemplate?.id ? 'Edit radiology template' : 'New radiology template'"
+  [modal]="true"
+  [visible]="templateEditorOpen()"
+  (visibleChange)="onTemplateEditorVisible($event)"
+  [style]="{ width: 'min(720px, 96vw)' }"
+  [breakpoints]="{ '960px': '96vw' }"
+  styleClass="masters-dialog"
+>
+  @if (editingTemplate; as form) {
+    <div class="grid gap-4">
+      <section class="masters-form-panel">
+        <p class="masters-section-label">Basics</p>
+        <div class="mt-3 grid grid-cols-2 gap-3 max-[700px]:grid-cols-1">
+          <p-floatlabel variant="on">
+            <input pInputText id="tmplName" [(ngModel)]="form.name" class="w-full" autocomplete="off" />
+            <label for="tmplName">Template name</label>
+          </p-floatlabel>
+          <p-floatlabel variant="on">
+            <p-select
+              inputId="tmplModality"
+              [options]="templateModalityOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [(ngModel)]="form.modality"
+              styleClass="w-full"
+            />
+            <label for="tmplModality">{{ templateProfile === 'Narrative' ? 'Type' : 'Modality' }}</label>
+          </p-floatlabel>
+          <div class="col-span-2 max-[700px]:col-span-1">
+            <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#64748b]" for="tmplServices">
+              Services for this template
+            </label>
+            <p-multiselect
+              inputId="tmplServices"
+              [options]="templateServiceOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [(ngModel)]="form.serviceIds"
+              [placeholder]="
+                templateProfile === 'Narrative'
+                  ? 'Select narrative lab services'
+                  : 'Select one or more radiology services'
+              "
+              [filter]="true"
+              filterPlaceHolder="Search services"
+              display="chip"
+              [showClear]="true"
+              styleClass="w-full"
+              [panelStyle]="{ 'max-width': '100%' }"
+            />
+            <p class="m-0 mt-1.5 text-[11px] text-[#64748b]">
+              Leave empty to show this template for every matching service.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="masters-form-panel">
+        <p class="masters-section-label">Report body</p>
+        <p-editor
+          class="clinora-editor mt-3 block"
+          [(ngModel)]="form.body"
+          [modules]="editorModules"
+          [style]="{ height: '320px' }"
+          placeholder="CLINICAL HISTORY / TECHNIQUE / FINDINGS / IMPRESSION"
+        />
+      </section>
+
+      <section class="masters-form-panel">
+        <label class="masters-switch">
+          <p-toggleswitch [(ngModel)]="form.status" />
+          <span>Active template</span>
+        </label>
+      </section>
+    </div>
+
+    <div class="mt-4 flex justify-end gap-2 border-t border-[#e8eef2] pt-3">
+      <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="closeTemplateEditor()" />
+      <p-button icon="pi pi-save" label="Save template" [loading]="saving()" (onClick)="saveTemplate()" />
+    </div>
+  }
+</p-dialog>

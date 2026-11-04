@@ -18,7 +18,7 @@
       @if (receipt(); as done) {
         <p-message
           severity="success"
-          [text]="done.visitNumber + ' · ' + done.patientName + ' · ' + (done.amountReceived | currency: 'PKR' : 'symbol-narrow' : '1.0-0')"
+          [text]="done.visitNumber + (done.tokenNo != null ? ' · Token ' + done.tokenNo : '') + ' · ' + done.patientName + ' · ' + (done.amountReceived | currency: 'PKR' : 'symbol-narrow' : '1.0-0')"
           styleClass="w-full"
         />
       }
@@ -512,9 +512,9 @@
     <ng-template #header>
       <tr>
         <th>Visit</th>
+        <th>Token</th>
         <th>Patient</th>
-        <th>Referred by</th>
-        <th>Panel</th>
+        <th>Status</th>
         <th>Time</th>
         <th></th>
       </tr>
@@ -522,12 +522,15 @@
     <ng-template #body let-visit>
       <tr>
         <td>{{ visit.visitNumber }}</td>
+        <td>{{ visit.tokenNo ?? '—' }}</td>
         <td>{{ visit.patientName }}</td>
-        <td>{{ visit.referredBy }}</td>
-        <td>{{ visit.panelName }}</td>
+        <td>{{ visit.visitStatus || 'Active' }}</td>
         <td>{{ visit.createdAt | date: 'shortTime' }}</td>
-        <td>
-          <p-button label="Open" size="small" (onClick)="pickVisit(visit)" />
+        <td class="flex gap-1">
+          <p-button label="Slips" size="small" (onClick)="reprintSlips(visit.id)" />
+          @if ((visit.visitStatus || 'Active') !== 'Cancelled') {
+            <p-button label="Cancel" size="small" severity="danger" [outlined]="true" (onClick)="cancelVisit(visit)" />
+          }
         </td>
       </tr>
     </ng-template>
