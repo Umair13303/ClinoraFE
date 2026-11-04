@@ -1,0 +1,115 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Outside lab</strong>
+      <span>Send samples · paste results on receive</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <input
+        pInputText
+        [ngModel]="filter()"
+        (ngModelChange)="filter.set($event)"
+        placeholder="Barcode / visit / patient"
+      />
+      <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
+    </div>
+  </header>
+  <main class="desk-main overflow-auto p-3">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+    }
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" styleClass="mb-2 w-full" />
+    }
+
+    <section class="desk-panel mb-3">
+      <header class="desk-panel__head">
+        <h2>Pending send-out</h2>
+        <span>{{ pickedCount() }} selected</span>
+      </header>
+      <div class="desk-panel__body">
+        @if (visiblePending().length === 0) {
+          <p class="m-0 text-[12px] text-[#64748b]">No collected send-out samples waiting.</p>
+        } @else {
+          <ul class="m-0 mb-2 list-none p-0">
+            @for (sample of visiblePending(); track sample.sampleId) {
+              <li class="flex items-center gap-2 border-b border-[#eef2f6] py-1.5 text-[12px]">
+                <p-checkbox
+                  [binary]="true"
+                  [ngModel]="!!picked()[sample.sampleId]"
+                  (ngModelChange)="toggle(sample.sampleId, $event)"
+                  [inputId]="'s-' + sample.sampleId"
+                />
+                <label [for]="'s-' + sample.sampleId" class="m-0 cursor-pointer">
+                  <strong class="font-mono">{{ sample.barcode }}</strong> · {{ sample.visitNumber }} ·
+                  {{ sample.patientName }} · {{ sample.tests.join(', ') }}
+                </label>
+              </li>
+            }
+          </ul>
+          <div class="mb-2 grid grid-cols-[1.2fr_1fr_1fr] gap-2 max-[900px]:grid-cols-1">
+            <p-select
+              [options]="labs()"
+              optionLabel="name"
+              optionValue="id"
+              [(ngModel)]="outsideLabId"
+              placeholder="Outside lab"
+              size="small"
+            />
+            <input pInputText [(ngModel)]="awb" placeholder="AWB / courier ref" />
+            <input pInputText [(ngModel)]="notes" placeholder="Notes" />
+          </div>
+          <p-button
+            [label]="'Create shipment (' + pickedCount() + ')'"
+            size="small"
+            [loading]="shipping()"
+            [disabled]="pickedCount() === 0"
+            (onClick)="ship()"
+          />
+        }
+      </div>
+    </section>
+
+    <section class="desk-panel">
+      <header class="desk-panel__head"><h2>Shipments</h2></header>
+      <div class="desk-panel__body grid gap-3">
+        @if (shipments().length === 0) {
+          <p class="m-0 text-[12px] text-[#64748b]">No shipments yet.</p>
+        }
+        @for (shipment of shipments(); track shipment.id) {
+          <div class="rounded-lg border border-[#e8eef2] p-2.5">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2 text-[12px]">
+              <strong>#{{ shipment.id }} · {{ shipment.outsideLabName }} · {{ shipment.status }}</strong>
+              <span class="text-[#64748b]">{{ shipment.sentAt | date: 'short' }}</span>
+            </div>
+            <ul class="m-0 mb-2 list-none p-0">
+              @for (item of shipment.items; track item.visitServiceId) {
+                <li class="border-b border-[#eef2f6] py-1.5 text-[12px]">
+                  <span class="font-mono">{{ item.barcode }}</span> · {{ item.patientName }} · {{ item.serviceName }}
+                  @if (shipment.status !== 'Received') {
+                    <textarea
+                      pTextarea
+                      rows="1"
+                      class="mt-1 w-full"
+                      [ngModel]="receiveDrafts()[item.visitServiceId] || ''"
+                      (ngModelChange)="setReceiveDraft(item.visitServiceId, $event)"
+                      placeholder="Paste outside result (optional)"
+                    ></textarea>
+                  }
+                </li>
+              }
+            </ul>
+            @if (shipment.status !== 'Received') {
+              <p-button
+                label="Mark received"
+                size="small"
+                [loading]="receivingId() === shipment.id"
+                (onClick)="receive(shipment)"
+              />
+            }
+          </div>
+        }
+      </div>
+    </section>
+  </main>
+</div>

@@ -1,0 +1,67 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Radiology</strong>
+      <span>No sample · image → Finalize</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <input
+        pInputText
+        [ngModel]="filter()"
+        (ngModelChange)="filter.set($event)"
+        placeholder="Visit / patient / study"
+      />
+      <input
+        pInputText
+        [ngModel]="performedBy"
+        (ngModelChange)="onPerformedBy($event)"
+        placeholder="Radiologist / tech"
+      />
+      <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
+    </div>
+  </header>
+  <main class="desk-main overflow-auto p-3">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+    }
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" styleClass="mb-2 w-full" />
+    }
+    @if (visible().length === 0) {
+      <p class="text-[12px] text-[#64748b]">No radiology studies in queue.</p>
+    }
+    <div class="grid gap-2">
+      @for (item of visible(); track item.visitServiceId) {
+        <section class="desk-panel">
+          <div class="desk-panel__body grid gap-2">
+            <div class="text-[12px]">
+              <strong>{{ item.visitNumber }} · {{ item.patientName }}</strong>
+              <span class="text-[#64748b]"> · {{ item.serviceName }} · {{ item.status }}</span>
+              @if (item.urgent) {
+                <span class="text-[#be123c]"> · Urgent</span>
+              }
+            </div>
+            @if (item.status === 'AwaitingImaging') {
+              <textarea
+                pTextarea
+                rows="2"
+                class="w-full"
+                [ngModel]="findings()[item.visitServiceId] || ''"
+                (ngModelChange)="setFindings(item.visitServiceId, $event)"
+                placeholder="Findings / notes (optional)"
+              ></textarea>
+              <p-button
+                label="Mark imaged"
+                size="small"
+                [loading]="busyId() === item.visitServiceId"
+                (onClick)="complete(item)"
+              />
+            } @else {
+              <p class="m-0 text-[11px] text-[#64748b]">Ready — open Finalize to sign and print.</p>
+            }
+          </div>
+        </section>
+      }
+    </div>
+  </main>
+</div>

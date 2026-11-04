@@ -1,0 +1,68 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Doctor finalize</strong>
+      <span>Review · sign · print report</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <input
+        pInputText
+        [ngModel]="filter()"
+        (ngModelChange)="filter.set($event)"
+        placeholder="Visit / patient / test"
+      />
+      <input pInputText [ngModel]="doctor" (ngModelChange)="onDoctor($event)" placeholder="Doctor name" />
+      @if (lastReport()) {
+        <p-button label="Reprint report" severity="secondary" [outlined]="true" size="small" (onClick)="reprintLast()" />
+      }
+      <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
+    </div>
+  </header>
+  <main class="desk-main overflow-auto p-3">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+    }
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" styleClass="mb-2 w-full" />
+    }
+    @if (visitGroups().length === 0) {
+      <p class="text-[12px] text-[#64748b]">Nothing waiting for finalize.</p>
+    }
+    <div class="grid gap-3">
+      @for (group of visitGroups(); track group.visitId) {
+        <section class="desk-panel">
+          <header class="desk-panel__head">
+            <h2>{{ group.visitNumber }} · {{ group.patientName }}</h2>
+            <span>{{ selectedLines(group.visitId).length }}/{{ group.lines.length }}</span>
+          </header>
+          <div class="desk-panel__body">
+            <ul class="m-0 mb-2 list-none p-0">
+              @for (line of group.lines; track line.visitServiceId) {
+                <li class="flex items-start gap-2 border-b border-[#eef2f6] py-1.5 text-[12px]">
+                  <p-checkbox
+                    [binary]="true"
+                    [ngModel]="!!selected()[line.visitServiceId]"
+                    (ngModelChange)="toggle(line.visitServiceId, $event)"
+                    [inputId]="'f-' + line.visitServiceId"
+                  />
+                  <label [for]="'f-' + line.visitServiceId" class="m-0 min-w-0 flex-1 cursor-pointer">
+                    <strong>{{ line.serviceName }}</strong>
+                    <span class="text-[#64748b]"> · {{ line.status }}</span>
+                    <p class="m-0 text-[11px] text-[#475569]">{{ line.existingResultText || '—' }}</p>
+                  </label>
+                </li>
+              }
+            </ul>
+            <p-button
+              label="Finalize + print report"
+              size="small"
+              [loading]="busyVisit() === group.visitId"
+              [disabled]="selectedLines(group.visitId).length === 0"
+              (onClick)="finalize(group.visitId)"
+            />
+          </div>
+        </section>
+      }
+    </div>
+  </main>
+</div>

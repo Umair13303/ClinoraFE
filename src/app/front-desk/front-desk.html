@@ -1,0 +1,535 @@
+<div class="desk-stage">
+    <header class="desk-top">
+      <div class="desk-top__title">
+        <strong>New visit</strong>
+        <span>Name → services → pay · Ctrl+Enter</span>
+      </div>
+      <div class="flex gap-1.5">
+        <p-button label="Find patient" severity="secondary" [outlined]="true" size="small" (onClick)="openFind()" />
+        <p-button label="Today" severity="secondary" [outlined]="true" size="small" (onClick)="openToday()" />
+      </div>
+    </header>
+
+    <main class="desk-main">
+      @if (loadError()) {
+        <p-message severity="error" [text]="loadError()!" styleClass="w-full" />
+      }
+
+      @if (receipt(); as done) {
+        <p-message
+          severity="success"
+          [text]="done.visitNumber + ' · ' + done.patientName + ' · ' + (done.amountReceived | currency: 'PKR' : 'symbol-narrow' : '1.0-0')"
+          styleClass="w-full"
+        />
+      }
+
+      <form class="desk-form" [formGroup]="form" (ngSubmit)="submit()" (keydown)="onFormKeydown($event)">
+        <div class="desk-col">
+          <section class="desk-panel">
+            <header class="desk-panel__head">
+              <h2>Patient</h2>
+              <div class="desk-patient-search relative min-w-0 flex-1">
+                <input
+                  pInputText
+                  type="search"
+                  placeholder="Visit no · phone · name"
+                  autocomplete="off"
+                  [value]="patientQuery()"
+                  (input)="searchPatients($any($event.target).value)"
+                  (keydown.enter)="pickPatientHit($event)"
+                />
+                @if (!showFind() && patientHits().length > 0) {
+                  <ul class="desk-hits">
+                    @for (hit of patientHits(); track hit.id) {
+                      <li>
+                        <button type="button" (click)="choosePatient(hit)">
+                          <strong>{{ hit.fullName }}</strong>
+                          <span>{{ hit.phone }} · {{ hit.gender }} · {{ hit.age }} yrs · {{ hit.visitCount }} visit{{ hit.visitCount === 1 ? '' : 's' }}</span>
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
+              <div class="flex shrink-0 items-center gap-1">
+                @if (selectedPatient()) {
+                  <p-button label="Change" severity="secondary" [text]="true" size="small" (onClick)="clearPatient()" />
+                }
+                <p-button
+                  [label]="patientDetailsOpen() ? 'Less' : 'More details'"
+                  severity="secondary"
+                  [text]="true"
+                  size="small"
+                  (onClick)="togglePatientDetails()"
+                />
+              </div>
+            </header>
+            <div class="desk-panel__body">
+              @if (selectedPatient(); as patient) {
+                <div class="flex items-center gap-2.5">
+                  @if (photoPreview(); as pic) {
+                    <img [src]="pic" alt="" class="h-9 w-9 rounded-lg object-cover" />
+                  } @else {
+                    <span class="grid h-8 w-8 place-items-center rounded-lg bg-[#ccfbf1] text-[11px] font-bold text-[#115e59]">{{
+                      initials(patient.fullName)
+                    }}</span>
+                  }
+                  <div class="min-w-0">
+                    <strong class="block truncate text-[13px] tracking-tight">{{ patient.fullName }}</strong>
+                    <p class="m-0 truncate text-[11px] text-[#64748b]">
+                      File {{ patient.id }} · {{ patient.phone }} · {{ patient.gender }} · {{ patient.age }} yrs
+                    </p>
+                  </div>
+                </div>
+              } @else {
+                <div class="grid grid-cols-[minmax(0,1.4fr)_64px_108px_minmax(0,1.1fr)] gap-2 max-[980px]:grid-cols-1">
+                  <label class="desk-label">
+                    Full name
+                    <input #nameInput pInputText type="text" formControlName="fullName" autocomplete="name" fluid />
+                  </label>
+                  <label class="desk-label">
+                    Age
+                    <p-inputNumber
+                      formControlName="age"
+                      [min]="0"
+                      [max]="120"
+                      [useGrouping]="false"
+                      [showButtons]="false"
+                      styleClass="w-full"
+                      inputStyleClass="w-full"
+                    />
+                  </label>
+                  <label class="desk-label">
+                    Gender
+                    <p-select
+                      formControlName="gender"
+                      [options]="genderOptions"
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="Select"
+                      [showClear]="false"
+                      size="small"
+                      styleClass="w-full"
+                    />
+                  </label>
+                  <label class="desk-label relative">
+                    Phone
+                    <input
+                      #phoneInput
+                      pInputText
+                      type="tel"
+                      formControlName="phone"
+                      autocomplete="tel"
+                      fluid
+                      (input)="onPhoneInput($any($event.target).value)"
+                      (keydown.enter)="pickPhoneHit($event)"
+                    />
+                    @if (phoneHits().length > 0) {
+                      <ul class="desk-hits">
+                        @for (hit of phoneHits(); track hit.id) {
+                          <li>
+                            <button type="button" (click)="choosePatient(hit)">
+                              <strong>{{ hit.fullName }}</strong>
+                              <span>{{ hit.phone }} · {{ hit.gender }} · {{ hit.age }} yrs</span>
+                            </button>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </label>
+                </div>
+              }
+
+              @if (!patientDetailsOpen()) {
+                <button type="button" class="patient-details-summary" (click)="togglePatientDetails()">
+                  <span>More patient details</span>
+                  <span>CNIC · passport · photo · more later</span>
+                </button>
+              } @else {
+                <div class="patient-details">
+                  <div class="patient-details__head">
+                    <strong>Identity & extras</strong>
+                    <span>Optional — new fields go in this grid</span>
+                  </div>
+                  <div class="patient-details__grid">
+                    <label class="desk-label">
+                      CNIC
+                      <input pInputText type="text" formControlName="cnic" placeholder="xxxxx-xxxxxxx-x" fluid />
+                    </label>
+                    <label class="desk-label">
+                      Passport no.
+                      <input pInputText type="text" formControlName="passportNo" placeholder="Optional" fluid />
+                    </label>
+                    <div class="desk-photo">
+                      @if (photoPreview(); as pic) {
+                        <img [src]="pic" alt="Patient photo" />
+                      } @else {
+                        <span>Photo</span>
+                      }
+                      <label class="desk-photo__pick">
+                        {{ photoPreview() ? 'Change' : 'Add' }}
+                        <input type="file" accept="image/*" (change)="onPhotoSelected($event)" />
+                      </label>
+                      @if (photoBase64()) {
+                        <button type="button" class="desk-photo__clear" (click)="clearPhoto()">Clear</button>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </section>
+
+          <section class="desk-panel">
+            <header class="desk-panel__head">
+              <h2>Services</h2>
+              <span>{{ billLines().length }} added</span>
+            </header>
+            <div class="desk-panel__body">
+              <label class="finder desk-label mb-1.5">
+                <input
+                  #serviceInput
+                  pInputText
+                  type="search"
+                  placeholder="Search a service, then press Enter"
+                  fluid
+                  [value]="serviceQuery()"
+                  (input)="onServiceInput($any($event.target).value)"
+                  (keydown.enter)="addFirstMatch($event)"
+                />
+              </label>
+
+              @if (matches().length > 0) {
+                <ul class="mb-2 overflow-hidden rounded-lg border border-[#d5dee6] bg-white p-0" style="list-style: none; margin: 0 0 8px">
+                  @for (service of matches(); track service.id) {
+                    <li>
+                      <button
+                        type="button"
+                        class="flex w-full cursor-pointer items-center justify-between border-0 border-b border-[#eef2f6] bg-white px-2.5 py-1.5 text-left hover:bg-[#f8fafc]"
+                        (click)="addService(service.id)"
+                      >
+                        <span
+                          ><strong class="text-[12px]">{{ service.name }}</strong>
+                          <small class="mt-0 block text-[10px] font-medium text-[#64748b]">{{ service.category }}</small></span
+                        >
+                        <span class="text-[12px] font-semibold tabular-nums">{{
+                          service.fee | currency: 'PKR' : 'symbol-narrow' : '1.0-0'
+                        }}</span>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+
+              @if (billLines().length === 0) {
+                <p class="py-4 text-center text-[11px] text-[#64748b]">No services on this visit.</p>
+              } @else {
+                <ul class="service-lines m-0 list-none overflow-visible p-0">
+                  <li class="service-line service-line--head">
+                    <span>Service</span>
+                    <span>Discount</span>
+                    <span>Staff</span>
+                    <span title="From service normal / urgent time">Ready by</span>
+                    <span class="text-center">Urgent</span>
+                    <span class="text-right">Amount</span>
+                    <span></span>
+                  </li>
+                  @for (line of billLines(); track line.id) {
+                    <li
+                      class="service-line"
+                      [class.service-line--urgent]="line.urgent"
+                    >
+                      <div class="min-w-0">
+                        <strong class="block truncate text-[12px] font-semibold">{{ line.name }}</strong>
+                        <small class="mt-0 block truncate text-[10px] text-[#64748b]">{{ line.category }}</small>
+                      </div>
+                      <p-inputNumber
+                        [ngModel]="line.discount"
+                        [ngModelOptions]="{ standalone: true }"
+                        (ngModelChange)="setDiscount(line.id, '' + $event)"
+                        [min]="0"
+                        [max]="line.fee"
+                        [useGrouping]="false"
+                        [showButtons]="false"
+                        styleClass="w-full"
+                        inputStyleClass="w-full"
+                        [attr.aria-label]="'Discount for ' + line.name"
+                      />
+                      <div class="relative min-w-0">
+                        @if (line.allowsStaff) {
+                          <input
+                            pInputText
+                            type="text"
+                            placeholder="Doctor / staff"
+                            fluid
+                            [ngModel]="line.staffName"
+                            [ngModelOptions]="{ standalone: true }"
+                            (ngModelChange)="setStaff(line.id, $event)"
+                            (focus)="staffFocusId.set(line.id)"
+                            (blur)="onStaffBlur()"
+                            [attr.aria-label]="'Staff for ' + line.name"
+                          />
+                          @if (staffFocusId() === line.id && staffSuggestions(line.staffName).length > 0) {
+                            <ul class="desk-hits">
+                              @for (member of staffSuggestions(line.staffName); track member.id) {
+                                <li>
+                                  <button type="button" (mousedown)="pickStaff(line.id, member.name)">
+                                    <strong>{{ member.name }}</strong>
+                                    <span>{{ member.department }}</span>
+                                  </button>
+                                </li>
+                              }
+                            </ul>
+                          }
+                        } @else {
+                          <span
+                            class="block truncate text-[10px] font-medium text-[#94a3b8]"
+                            title="Referring doctor is set on the visit Referral section"
+                            >Visit ref by</span
+                          >
+                        }
+                      </div>
+                      <input
+                        pInputText
+                        type="time"
+                        [ngModel]="line.readyBy"
+                        [ngModelOptions]="{ standalone: true }"
+                        (ngModelChange)="setReady(line.id, $event)"
+                        [attr.title]="
+                          'Normal ' + line.normalMinutes + 'm · Urgent ' + line.urgentMinutes + 'm'
+                        "
+                        [attr.aria-label]="'Ready by for ' + line.name"
+                      />
+                      <div class="justify-self-center">
+                        <p-checkbox
+                          [binary]="true"
+                          [ngModel]="line.urgent"
+                          [ngModelOptions]="{ standalone: true }"
+                          (ngModelChange)="setUrgent(line.id, $event)"
+                          [inputId]="'urgent-' + line.id"
+                          [ariaLabel]="'Urgent for ' + line.name"
+                        />
+                      </div>
+                      <strong class="text-right text-[12px] font-semibold tabular-nums">{{
+                        line.net | currency: 'PKR' : 'symbol-narrow' : '1.0-0'
+                      }}</strong>
+                      <p-button
+                        icon="pi pi-times"
+                        severity="secondary"
+                        [text]="true"
+                        rounded
+                        size="small"
+                        [ariaLabel]="'Remove ' + line.name"
+                        (onClick)="removeService(line.id)"
+                      />
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          </section>
+        </div>
+
+        <aside class="desk-rail">
+          <section class="desk-panel">
+            <header class="desk-panel__head"><h2>Payment</h2></header>
+            <div class="desk-panel__body">
+              <div class="desk-row mb-2">
+                <span class="desk-muted">Visit type</span>
+                <p-selectButton
+                  [options]="visitTypeOptions"
+                  [(ngModel)]="visitType"
+                  [ngModelOptions]="{ standalone: true }"
+                  (ngModelChange)="setPanel($event === 'panel')"
+                  optionLabel="label"
+                  optionValue="value"
+                  size="small"
+                />
+              </div>
+              @if (isPanel()) {
+                <label class="desk-label mb-2">
+                  Panel / company
+                  <input pInputText type="text" formControlName="panelName" placeholder="Panel or company name" fluid />
+                </label>
+              }
+
+              <dl class="m-0 mb-2">
+                <div class="flex items-center justify-between border-b border-[#eef2f6] py-1 text-[#475569]">
+                  <dt>Fees</dt>
+                  <dd class="m-0 text-[12px] font-semibold tabular-nums">{{ fees() | currency: 'PKR' : 'symbol-narrow' : '1.0-0' }}</dd>
+                </div>
+                <div class="flex items-center justify-between py-1 text-[#475569]">
+                  <dt>Discounts</dt>
+                  <dd class="m-0 text-[12px] font-semibold tabular-nums">{{
+                    totalDiscount() | currency: 'PKR' : 'symbol-narrow' : '1.0-0'
+                  }}</dd>
+                </div>
+              </dl>
+
+              <div class="mb-2 grid grid-cols-2 gap-1.5">
+                <label class="desk-label">
+                  Percent off
+                  <p-inputNumber
+                    formControlName="percentOff"
+                    [min]="0"
+                    [max]="100"
+                    [useGrouping]="false"
+                    [showButtons]="false"
+                    styleClass="w-full"
+                    inputStyleClass="w-full"
+                  />
+                </label>
+                <label class="desk-label">
+                  Visit off
+                  <p-inputNumber
+                    formControlName="visitOff"
+                    [min]="0"
+                    [useGrouping]="false"
+                    [showButtons]="false"
+                    styleClass="w-full"
+                    inputStyleClass="w-full"
+                  />
+                </label>
+              </div>
+
+              <div class="desk-due">
+                <span>Amount due</span>
+                <strong>{{ net() | currency: 'PKR' : 'symbol-narrow' : '1.0-0' }}</strong>
+              </div>
+
+              <div class="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-1.5">
+                <label class="desk-label m-0">
+                  Amount received
+                  <p-inputNumber
+                    formControlName="amountReceived"
+                    [min]="0"
+                    [useGrouping]="false"
+                    [showButtons]="false"
+                    styleClass="w-full"
+                    inputStyleClass="w-full"
+                  />
+                </label>
+                <p-button label="Pay full" severity="secondary" [outlined]="true" size="small" (onClick)="payFull()" />
+              </div>
+
+              <div class="mb-2 flex items-center gap-1.5">
+                <p-checkbox
+                  [binary]="true"
+                  [ngModel]="paymentReceived()"
+                  [ngModelOptions]="{ standalone: true }"
+                  (ngModelChange)="setPaymentReceived($event)"
+                  inputId="paid"
+                />
+                <label for="paid" class="m-0 text-[12px] font-medium text-[#475569]">Payment received</label>
+              </div>
+
+              @if (shortfall() > 0) {
+                <p class="mb-2 text-[11px] text-[#be123c]">Still due {{ shortfall() | currency: 'PKR' : 'symbol-narrow' : '1.0-0' }}</p>
+              }
+              @if (submitError()) {
+                <p-message severity="error" [text]="submitError()!" styleClass="mb-2 w-full" />
+              }
+
+              <p-button
+                type="submit"
+                [label]="submitting() ? 'Saving…' : 'Create visit'"
+                [loading]="submitting()"
+                styleClass="w-full!"
+              />
+            </div>
+          </section>
+
+          <section class="desk-panel">
+            <header class="desk-panel__head"><h2>Referral</h2></header>
+            <div class="desk-panel__body">
+              <p-selectButton
+                [options]="referralOptions"
+                [(ngModel)]="referralMode"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="setReferred($event === 'referred')"
+                optionLabel="label"
+                optionValue="value"
+                size="small"
+              />
+
+              @if (isReferred()) {
+                <label class="desk-label mt-2">
+                  Referred by
+                  <input
+                    pInputText
+                    type="text"
+                    formControlName="referredBy"
+                    placeholder="Which doctor referred these tests"
+                    fluid
+                  />
+                </label>
+                <div class="mt-1.5 grid grid-cols-2 gap-1.5">
+                  <label class="desk-label">
+                    Slip no.
+                    <input pInputText type="text" formControlName="slipNo" placeholder="Letter or slip" fluid />
+                  </label>
+                  <label class="desk-label">
+                    Notes
+                    <input pInputText type="text" formControlName="notes" placeholder="Short note" fluid />
+                  </label>
+                </div>
+              }
+            </div>
+          </section>
+        </aside>
+      </form>
+    </main>
+  </div>
+
+<p-dialog header="Find a patient" [modal]="true" [visible]="showFind()" (visibleChange)="showFind.set($event)" [style]="{ width: 'min(400px, 100%)' }">
+  <input
+    pInputText
+    type="search"
+    placeholder="Visit no, phone, or name"
+    fluid
+    class="mb-2"
+    [value]="patientQuery()"
+    (input)="searchPatients($any($event.target).value)"
+  />
+  <ul class="m-0 max-h-64 list-none overflow-auto p-0">
+    @for (patient of patientHits(); track patient.id) {
+      <li>
+        <button
+          type="button"
+          class="grid w-full cursor-pointer gap-0.5 border-0 border-b border-[#eef2f6] bg-white px-2.5 py-1.5 text-left hover:bg-[#f8fafc]"
+          (click)="choosePatient(patient)"
+        >
+          <strong class="text-[12px]">{{ patient.fullName }}</strong>
+          <span class="text-[11px] font-medium text-[#64748b]">{{ patient.phone }} · {{ patient.gender }} · {{ patient.age }} yrs</span>
+        </button>
+      </li>
+    }
+  </ul>
+</p-dialog>
+
+<p-dialog header="Today" [modal]="true" [visible]="showToday()" (visibleChange)="showToday.set($event)" [style]="{ width: 'min(700px, 100%)' }">
+  <p-table [value]="today()" [tableStyle]="{ 'min-width': '36rem' }" styleClass="text-sm">
+    <ng-template #header>
+      <tr>
+        <th>Visit</th>
+        <th>Patient</th>
+        <th>Referred by</th>
+        <th>Panel</th>
+        <th>Time</th>
+        <th></th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-visit>
+      <tr>
+        <td>{{ visit.visitNumber }}</td>
+        <td>{{ visit.patientName }}</td>
+        <td>{{ visit.referredBy }}</td>
+        <td>{{ visit.panelName }}</td>
+        <td>{{ visit.createdAt | date: 'shortTime' }}</td>
+        <td>
+          <p-button label="Open" size="small" (onClick)="pickVisit(visit)" />
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</p-dialog>

@@ -1,0 +1,32 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Barcode reprint</strong>
+      <span>Sample · tube color · tests</span>
+    </div>
+    <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
+  </header>
+  <main class="desk-main overflow-auto p-3">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+    }
+    <ul class="m-0 grid list-none gap-2 p-0">
+      @for (sample of samples(); track sample.sampleId) {
+        <li class="desk-panel">
+          <div class="desk-panel__body flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <strong class="block font-mono text-[14px]">{{ sample.barcode }}</strong>
+              <p class="m-0 truncate text-[12px]">{{ sample.patientName }} · {{ sample.visitNumber }}</p>
+              <p class="m-0 text-[11px] text-[#64748b]">
+                {{ sample.sampleTypeName }} · {{ sample.containerName }} · {{ sample.bottleColorName }} ·
+                {{ sample.tests.join(', ') }}
+              </p>
+              <p class="m-0 text-[10px] text-[#94a3b8]">{{ sample.collectedAt | date: 'short' }}</p>
+            </div>
+            <p-button label="Print" size="small" (onClick)="print(sample)" />
+          </div>
+        </li>
+      }
+    </ul>
+  </main>
+</div>

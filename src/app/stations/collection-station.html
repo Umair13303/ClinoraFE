@@ -1,0 +1,103 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Sample collection</strong>
+      <span>One tube group = one draw · barcode prints after collect</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <input
+        pInputText
+        [ngModel]="filter()"
+        (ngModelChange)="filter.set($event)"
+        placeholder="Find visit / patient / test"
+      />
+      <input
+        pInputText
+        [ngModel]="phlebotomist"
+        (ngModelChange)="onPhlebotomist($event)"
+        placeholder="Phlebotomist"
+      />
+      @if (lastBarcode()) {
+        <p-button label="Reprint barcode" severity="secondary" [outlined]="true" size="small" (onClick)="reprintLast()" />
+      }
+      <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
+    </div>
+  </header>
+  <main class="desk-main overflow-auto p-3">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+    }
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" styleClass="mb-2 w-full" />
+    }
+    @if (visibleGroups().length === 0) {
+      <p class="text-[12px] text-[#64748b]">No samples awaiting collection.</p>
+    }
+    <div class="grid gap-3">
+      @for (group of visibleGroups(); track group.groupKey) {
+        <section class="desk-panel">
+          <header class="desk-panel__head">
+            <h2>{{ group.visitNumber }} · {{ group.patientName }}</h2>
+            <span>{{ group.groupLabel }} · {{ selectedCount(group) }}/{{ group.lines.length }}</span>
+          </header>
+          <div class="desk-panel__body">
+            <p class="m-0 mb-2 text-[11px] text-[#64748b]">
+              Tube: {{ group.sampleTypeName }} · {{ group.containerName }} ·
+              <strong class="text-[#0f172a]">{{ group.bottleColorName }}</strong>
+            </p>
+            <ul class="m-0 mb-2 list-none p-0">
+              @for (line of group.lines; track line.visitServiceId) {
+                <li class="flex items-center gap-2 border-b border-[#eef2f6] py-1.5 text-[12px]">
+                  <p-checkbox
+                    [binary]="true"
+                    [ngModel]="selected()[line.visitServiceId] !== false"
+                    (ngModelChange)="toggleLine(line.visitServiceId, $event)"
+                    [inputId]="'c-' + line.visitServiceId"
+                  />
+                  <label [for]="'c-' + line.visitServiceId" class="m-0 flex-1 cursor-pointer">
+                    {{ line.serviceName }}
+                    @if (line.urgent) {
+                      <span class="text-[#be123c]"> · Urgent</span>
+                    }
+                  </label>
+                </li>
+              }
+            </ul>
+            @if (group.canSendOut) {
+              <div class="mb-2 flex flex-wrap items-center gap-2">
+                <p-checkbox
+                  [binary]="true"
+                  [ngModel]="!!sendOut()[group.groupKey]"
+                  (ngModelChange)="toggleSendOut(group.groupKey, $event)"
+                  [inputId]="'so-' + group.groupKey"
+                />
+                <label [for]="'so-' + group.groupKey" class="m-0 text-[12px]">Send to outside lab</label>
+                @if (sendOut()[group.groupKey]) {
+                  <p-select
+                    [options]="outsideLabs()"
+                    optionLabel="name"
+                    optionValue="id"
+                    placeholder="Outside lab"
+                    [ngModel]="outsideLabId()[group.groupKey]"
+                    (ngModelChange)="setLab(group.groupKey, $event)"
+                    size="small"
+                    styleClass="min-w-[12rem]"
+                  />
+                }
+              </div>
+            }
+            <p-button
+              [label]="
+                'Collect ' + selectedCount(group) + ' test' + (selectedCount(group) === 1 ? '' : 's') + ' + barcode'
+              "
+              size="small"
+              [loading]="busyKey() === group.groupKey"
+              [disabled]="selectedCount(group) === 0"
+              (onClick)="collect(group)"
+            />
+          </div>
+        </section>
+      }
+    </div>
+  </main>
+</div>

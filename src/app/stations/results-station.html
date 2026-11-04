@@ -1,0 +1,79 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Result entry</strong>
+      <span>Type result · Ctrl+Enter saves</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <input
+        pInputText
+        [ngModel]="filter()"
+        (ngModelChange)="filter.set($event)"
+        placeholder="Visit / patient / barcode / test"
+      />
+      <input
+        pInputText
+        [ngModel]="enteredBy"
+        (ngModelChange)="onEnteredBy($event)"
+        placeholder="Entered by"
+      />
+      <p-button label="Refresh" severity="secondary" [outlined]="true" size="small" (onClick)="reload()" />
+    </div>
+  </header>
+  <main class="desk-main overflow-auto p-3">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-2 w-full" />
+    }
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" styleClass="mb-2 w-full" />
+    }
+    @if (visible().length === 0) {
+      <p class="text-[12px] text-[#64748b]">No in-lab tests waiting for results.</p>
+    }
+    <div class="grid gap-2">
+      @for (item of visible(); track item.visitServiceId) {
+        <section class="desk-panel" (keydown.control.enter)="save(item, $event)">
+          <div class="desk-panel__body grid gap-2">
+            <div class="flex flex-wrap items-center justify-between gap-2 text-[12px]">
+              <strong>
+                {{ item.visitNumber }} · {{ item.patientName }} · {{ item.serviceName }}
+                @if (item.urgent) {
+                  <span class="text-[#be123c]">Urgent</span>
+                }
+              </strong>
+              <span class="font-mono text-[11px] text-[#64748b]">{{ item.barcode || '—' }}</span>
+            </div>
+            <textarea
+              pTextarea
+              rows="2"
+              class="w-full"
+              [ngModel]="draft(item.visitServiceId).text"
+              (ngModelChange)="patch(item.visitServiceId, { text: $event })"
+              placeholder="Result value / findings"
+            ></textarea>
+            <div class="grid grid-cols-[1fr_1fr_auto] items-end gap-2 max-[700px]:grid-cols-1">
+              <input
+                pInputText
+                placeholder="Units (optional)"
+                [ngModel]="draft(item.visitServiceId).units"
+                (ngModelChange)="patch(item.visitServiceId, { units: $event })"
+              />
+              <input
+                pInputText
+                placeholder="Reference (optional)"
+                [ngModel]="draft(item.visitServiceId).range"
+                (ngModelChange)="patch(item.visitServiceId, { range: $event })"
+              />
+              <p-button
+                label="Save"
+                size="small"
+                [loading]="savingId() === item.visitServiceId"
+                (onClick)="save(item)"
+              />
+            </div>
+          </div>
+        </section>
+      }
+    </div>
+  </main>
+</div>
