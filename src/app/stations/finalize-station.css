@@ -20,3 +20,25 @@
 .fin-meta {
   color: #64748b;
 }
+
+.fin-preview .ihc-table,
+.fin-preview .semen-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.fin-preview .ihc-table th,
+.fin-preview .ihc-table td,
+.fin-preview .semen-table th,
+.fin-preview .semen-table td {
+  border: 1px solid #e2e8f0;
+  padding: 0.2rem 0.35rem;
+  text-align: left;
+}
+
+.fin-preview .ihc-table th,
+.fin-preview .semen-table th {
+  background: #f8fafc;
+  font-weight: 600;
+}

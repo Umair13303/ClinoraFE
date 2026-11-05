@@ -14,7 +14,15 @@ import { Select } from 'primeng/select';
 import { Tag } from 'primeng/tag';
 import { Textarea } from 'primeng/textarea';
 
-import { ClinicApi, ExistingResult, RadiologyTemplate, ResultWorkItem } from '../clinic-api';
+import { ClinicApi, ExistingResult, LookupItem, RadiologyTemplate, ResultWorkItem } from '../clinic-api';
+import {
+  emptyIhcMarker,
+  emptyIhcWorksheet,
+  ihcWorksheetValid,
+  IhcWorksheet,
+  parseIhcWorksheet,
+  serializeIhcWorksheet,
+} from '../ihc-report';
 import { plainToEditorHtml, radiologyEditorModules, stripHtml } from '../rich-text';
 import {
   emptySemenWorksheet,
@@ -64,6 +72,9 @@ export class ResultsStation implements OnInit {
   protected readonly drafts = signal<Record<number, Draft>>({});
   protected readonly paramRows = signal<Record<number, ParamRow[]>>({});
   protected readonly semenDrafts = signal<Record<number, SemenWorksheet>>({});
+  protected readonly ihcDrafts = signal<Record<number, IhcWorksheet>>({});
+  protected readonly antibodies = signal<LookupItem[]>([]);
+  protected readonly selectedAntibody = signal<Record<number, number | null>>({});
   protected readonly narrativeTemplates = signal<RadiologyTemplate[]>([]);
   protected readonly selectedNarrativeTemplate = signal<Record<number, number | null>>({});
   protected readonly params = signal<Record<number, ParamOpt[]>>({});
@@ -73,6 +84,21 @@ export class ResultsStation implements OnInit {
   protected readonly savingId = signal<number | null>(null);
   protected enteredBy = readPref('enteredBy');
   protected readonly editorModules = radiologyEditorModules;
+  protected readonly ihcResultOptions = [
+    { label: 'Positive', value: 'Positive' },
+    { label: 'Negative', value: 'Negative' },
+    { label: 'Equivocal', value: 'Equivocal' },
+    { label: 'Not done', value: 'Not done' },
+  ];
+  protected readonly ihcIntensityOptions = [
+    { label: '0', value: '0' },
+    { label: '1+', value: '1+' },
+    { label: '2+', value: '2+' },
+    { label: '3+', value: '3+' },
+    { label: 'Strong', value: 'Strong' },
+    { label: 'Moderate', value: 'Moderate' },
+    { label: 'Weak', value: 'Weak' },
+  ];
 
   protected readonly visible = computed(() => {
     const q = this.filter().trim().toLowerCase();
@@ -107,10 +133,18 @@ export class ResultsStation implements OnInit {
         this.items.set(items);
         const drafts: Record<number, Draft> = {};
         const semen: Record<number, SemenWorksheet> = { ...this.semenDrafts() };
+        const ihc: Record<number, IhcWorksheet> = { ...this.ihcDrafts() };
         for (const item of items) {
           const profile = this.profileOf(item);
           if (profile === 'Semen') {
             semen[item.visitServiceId] = parseSemenWorksheet(item.existingResultText);
+          } else if (profile === 'Ihc') {
+            const sheet = parseIhcWorksheet(item.existingResultText);
+            if (sheet.markers.length === 0 && this.antibodies().length > 0) {
+              sheet.markers = this.defaultIhcMarkers();
+              sheet.panelName = sheet.panelName || 'Breast panel';
+            }
+            ihc[item.visitServiceId] = sheet;
           } else if (profile === 'Narrative') {
             drafts[item.visitServiceId] = {
               text: plainToEditorHtml(item.existingResultText),
@@ -134,12 +168,48 @@ export class ResultsStation implements OnInit {
         }
         this.drafts.set(drafts);
         this.semenDrafts.set(semen);
+        this.ihcDrafts.set(ihc);
       },
       error: () => this.error.set('Could not load result worklist.'),
     });
     this.api.radiologyTemplates(null, 'Narrative').subscribe({
       next: (list) => this.narrativeTemplates.set(list),
     });
+    this.api.sampleSetup().subscribe({
+      next: (setup) => {
+        this.antibodies.set(setup.antibodies ?? []);
+        // Re-seed empty IHC sheets once catalog arrives
+        if ((setup.antibodies ?? []).length > 0) {
+          this.ihcDrafts.update((map) => {
+            const next = { ...map };
+            for (const item of this.items()) {
+              if (this.profileOf(item) !== 'Ihc') {
+                continue;
+              }
+              const cur = next[item.visitServiceId] ?? parseIhcWorksheet(item.existingResultText);
+              if (cur.markers.length === 0) {
+                next[item.visitServiceId] = {
+                  ...cur,
+                  panelName: cur.panelName || 'Breast panel',
+                  markers: this.defaultIhcMarkers(setup.antibodies),
+                };
+              }
+            }
+            return next;
+          });
+        }
+      },
+    });
+  }
+
+  private defaultIhcMarkers(list?: LookupItem[]) {
+    const catalog = list ?? this.antibodies();
+    const preferred = ['ER', 'PR', 'HER2', 'KI67'];
+    const picked = preferred
+      .map((code) => catalog.find((a) => a.code.toUpperCase() === code))
+      .filter((a): a is LookupItem => !!a);
+    const source = picked.length > 0 ? picked : catalog.slice(0, 4);
+    return source.map((a) => emptyIhcMarker({ code: a.code, name: a.name }));
   }
 
   protected templatesFor(item: ResultWorkItem): RadiologyTemplate[] {
@@ -201,6 +271,10 @@ export class ResultsStation implements OnInit {
     return this.semenDrafts()[id] ?? emptySemenWorksheet();
   }
 
+  protected ihc(id: number): IhcWorksheet {
+    return this.ihcDrafts()[id] ?? emptyIhcWorksheet();
+  }
+
   protected patch(id: number, patch: Partial<Draft>): void {
     this.drafts.update((map) => ({ ...map, [id]: { ...this.draft(id), ...patch } }));
   }
@@ -216,6 +290,37 @@ export class ResultsStation implements OnInit {
 
   protected patchSemen(id: number, patch: Partial<SemenWorksheet>): void {
     this.semenDrafts.update((map) => ({ ...map, [id]: { ...this.semen(id), ...patch } }));
+  }
+
+  protected patchIhc(id: number, patch: Partial<IhcWorksheet>): void {
+    this.ihcDrafts.update((map) => ({ ...map, [id]: { ...this.ihc(id), ...patch } }));
+  }
+
+  protected patchIhcMarker(id: number, index: number, patch: Partial<ReturnType<typeof emptyIhcMarker>>): void {
+    const sheet = this.ihc(id);
+    const markers = sheet.markers.map((m, i) => (i === index ? { ...m, ...patch } : m));
+    this.patchIhc(id, { markers });
+  }
+
+  protected setSelectedAntibody(visitServiceId: number, antibodyId: number | null): void {
+    this.selectedAntibody.update((map) => ({ ...map, [visitServiceId]: antibodyId }));
+  }
+
+  protected addIhcMarker(item: ResultWorkItem): void {
+    const id = item.visitServiceId;
+    const abId = this.selectedAntibody()[id];
+    const ab = abId ? this.antibodies().find((a) => a.id === abId) : null;
+    const markers = [
+      ...this.ihc(id).markers,
+      emptyIhcMarker(ab ? { code: ab.code, name: ab.name } : undefined),
+    ];
+    this.patchIhc(id, { markers });
+    this.setSelectedAntibody(id, null);
+  }
+
+  protected removeIhcMarker(id: number, index: number): void {
+    const markers = this.ihc(id).markers.filter((_, i) => i !== index);
+    this.patchIhc(id, { markers });
   }
 
   protected onNarrativeTemplate(item: ResultWorkItem, templateId: number | null): void {
@@ -241,6 +346,10 @@ export class ResultsStation implements OnInit {
 
     if (profile === 'Semen') {
       this.saveSemen(item);
+      return;
+    }
+    if (profile === 'Ihc') {
+      this.saveIhc(item);
       return;
     }
     if (profile === 'Narrative') {
@@ -350,6 +459,28 @@ export class ResultsStation implements OnInit {
         enteredByName: this.enteredBy || null,
         source: 'InHouse',
         parameterName: 'Semen worksheet',
+      })
+      .subscribe({
+        next: (res) => this.onSaved(item, res),
+        error: (err) => this.onSaveError(err),
+      });
+  }
+
+  private saveIhc(item: ResultWorkItem): void {
+    const data = this.ihc(item.visitServiceId);
+    if (!ihcWorksheetValid(data)) {
+      this.error.set(`Enter at least one marker result or interpretation for ${item.serviceName}.`);
+      return;
+    }
+    this.savingId.set(item.visitServiceId);
+    this.error.set('');
+    this.api
+      .saveResult({
+        visitServiceId: item.visitServiceId,
+        resultText: serializeIhcWorksheet(data),
+        enteredByName: this.enteredBy || null,
+        source: 'InHouse',
+        parameterName: 'IHC worksheet',
       })
       .subscribe({
         next: (res) => this.onSaved(item, res),

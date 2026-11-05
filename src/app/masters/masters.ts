@@ -31,7 +31,7 @@ import {
 import { plainToEditorHtml, radiologyEditorModules, stripHtml } from '../rich-text';
 
 type Tab = 'services' | 'lookups' | 'radiology' | 'narrative';
-type LookupKind = 'sample-types' | 'containers' | 'bottle-colors' | 'sample-groups';
+type LookupKind = 'sample-types' | 'containers' | 'bottle-colors' | 'sample-groups' | 'antibodies';
 
 @Component({
   selector: 'app-masters',
@@ -111,6 +111,7 @@ export class Masters implements OnInit {
     { label: 'Standard (table)', value: 'Standard' },
     { label: 'Narrative (histo/cyto)', value: 'Narrative' },
     { label: 'Semen worksheet', value: 'Semen' },
+    { label: 'IHC worksheet', value: 'Ihc' },
   ];
 
   protected readonly editorModules = radiologyEditorModules;
@@ -133,6 +134,7 @@ export class Masters implements OnInit {
     { label: 'Containers', value: 'containers', icon: 'pi pi-box' },
     { label: 'Bottle colors', value: 'bottle-colors', icon: 'pi pi-palette' },
     { label: 'Sample groups', value: 'sample-groups', icon: 'pi pi-objects-column' },
+    { label: 'Antibodies (IHC)', value: 'antibodies', icon: 'pi pi-sparkles' },
   ];
 
   protected readonly filteredServices = computed(() => {
@@ -164,12 +166,14 @@ export class Masters implements OnInit {
       templates: this.templates().length,
       narrativeTemplates: this.narrativeTemplates().length,
       semen: list.filter((s) => s.reportProfile === 'Semen').length,
+      ihc: list.filter((s) => s.reportProfile === 'Ihc').length,
       narrative: list.filter((s) => s.reportProfile === 'Narrative').length,
       lookups:
         (setup?.sampleTypes.length ?? 0) +
         (setup?.containers.length ?? 0) +
         (setup?.bottleColors.length ?? 0) +
-        (setup?.sampleGroups.length ?? 0),
+        (setup?.sampleGroups.length ?? 0) +
+        (setup?.antibodies?.length ?? 0),
       outsideLabs: setup?.outsideLabs.length ?? 0,
     };
   });
@@ -307,12 +311,14 @@ export class Masters implements OnInit {
     }
   }
 
-  protected profileSeverity(profile: string | null | undefined): 'success' | 'info' | 'warn' | 'secondary' {
+  protected profileSeverity(profile: string | null | undefined): 'success' | 'info' | 'warn' | 'secondary' | 'contrast' {
     switch (profile) {
       case 'Narrative':
         return 'warn';
       case 'Semen':
         return 'info';
+      case 'Ihc':
+        return 'contrast';
       case 'Radiology':
         return 'secondary';
       default:
@@ -388,6 +394,8 @@ export class Masters implements OnInit {
         return setup.bottleColors;
       case 'sample-groups':
         return setup.sampleGroups;
+      case 'antibodies':
+        return setup.antibodies ?? [];
     }
   }
 

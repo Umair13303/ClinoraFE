@@ -16,6 +16,7 @@ import { Tag } from 'primeng/tag';
 import { Textarea } from 'primeng/textarea';
 
 import { ClinicApi, ReportDto, ResultWorkItem } from '../clinic-api';
+import { ihcWorksheetToPrintHtml, parseIhcWorksheet } from '../ihc-report';
 import { printFinalReport } from '../print/print';
 import { plainToEditorHtml, radiologyEditorModules, sanitizeReportHtml, stripHtml } from '../rich-text';
 import { parseSemenWorksheet, semenWorksheetToPrintHtml } from '../semen-report';
@@ -186,6 +187,11 @@ export class FinalizeStation implements OnInit {
         semenWorksheetToPrintHtml(parseSemenWorksheet(line.existingResultText)),
       );
     }
+    if (profile === 'Ihc') {
+      return this.sanitizer.bypassSecurityTrustHtml(
+        ihcWorksheetToPrintHtml(parseIhcWorksheet(line.existingResultText)),
+      );
+    }
     if (profile === 'Narrative' || profile === 'Radiology') {
       return this.sanitizer.bypassSecurityTrustHtml(sanitizeReportHtml(line.existingResultText));
     }
@@ -212,7 +218,7 @@ export class FinalizeStation implements OnInit {
     this.amendLine.set(line);
     const profile = this.profileOf(line);
     this.amendParams = [];
-    if (profile === 'Semen') {
+    if (profile === 'Semen' || profile === 'Ihc') {
       this.amendText = line.existingResultText ?? '';
     } else if (profile === 'Narrative' || profile === 'Radiology') {
       this.amendText = plainToEditorHtml(line.existingResultText);
@@ -251,23 +257,27 @@ export class FinalizeStation implements OnInit {
     this.amendParams = [];
   }
 
-  protected unlockSemenAndOpenResults(): void {
+  protected unlockWorksheetAndOpenResults(): void {
     const line = this.amendLine();
     if (!line) {
       return;
     }
+    const profile = this.profileOf(line);
     const text = (line.existingResultText ?? '').trim();
     if (!text) {
-      this.error.set('No semen worksheet to unlock.');
+      this.error.set('No worksheet to unlock.');
       return;
     }
+    const paramName =
+      line.existingParameterName ??
+      (profile === 'Ihc' ? 'IHC worksheet' : 'Semen worksheet');
     this.amendBusy.set(true);
     this.error.set('');
     this.api
       .saveResult({
         visitServiceId: line.visitServiceId,
         resultText: text,
-        parameterName: line.existingParameterName ?? 'Semen worksheet',
+        parameterName: paramName,
         enteredByName: this.doctor || null,
         amend: true,
         source: 'Amend',
@@ -276,7 +286,11 @@ export class FinalizeStation implements OnInit {
         next: () => {
           this.amendBusy.set(false);
           this.closeAmend();
-          this.info.set('Semen unlocked — edit worksheet in Result entry, then finalize again.');
+          this.info.set(
+            profile === 'Ihc'
+              ? 'IHC unlocked — edit worksheet in Result entry, then finalize again.'
+              : 'Semen unlocked — edit worksheet in Result entry, then finalize again.',
+          );
           void this.router.navigateByUrl('/results');
         },
         error: (err) => {
@@ -286,14 +300,19 @@ export class FinalizeStation implements OnInit {
       });
   }
 
+  /** @deprecated prefer unlockWorksheetAndOpenResults */
+  protected unlockSemenAndOpenResults(): void {
+    this.unlockWorksheetAndOpenResults();
+  }
+
   protected saveAmend(): void {
     const line = this.amendLine();
     if (!line) {
       return;
     }
     const profile = this.profileOf(line);
-    if (profile === 'Semen') {
-      this.unlockSemenAndOpenResults();
+    if (profile === 'Semen' || profile === 'Ihc') {
+      this.unlockWorksheetAndOpenResults();
       return;
     }
 

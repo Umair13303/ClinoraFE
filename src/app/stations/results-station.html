@@ -40,7 +40,7 @@
     <div class="station-banner">
       <div>
         <strong>{{ visible().length }} test{{ visible().length === 1 ? '' : 's' }} ready for entry</strong>
-        <span>UI switches by report profile (Standard / Narrative / Semen).</span>
+        <span>UI switches by report profile (Standard / Narrative / Semen / IHC).</span>
       </div>
       <p-tag [value]="visible().length ? 'In lab' : 'Clear'" [severity]="visible().length ? 'info' : 'success'" />
     </div>
@@ -213,6 +213,76 @@
                   <p-button
                     icon="pi pi-save"
                     label="Save semen worksheet"
+                    size="small"
+                    [loading]="savingId() === item.visitServiceId"
+                    (onClick)="save(item)"
+                  />
+                </div>
+              } @else if (profileOf(item) === 'Ihc') {
+                <input
+                  pInputText
+                  class="w-full"
+                  placeholder="Panel name"
+                  [ngModel]="ihc(item.visitServiceId).panelName"
+                  (ngModelChange)="patchIhc(item.visitServiceId, { panelName: $event })"
+                />
+                <div class="grid gap-2">
+                  @for (marker of ihc(item.visitServiceId).markers; track $index) {
+                    <div class="grid grid-cols-7 gap-2 max-[1000px]:grid-cols-2 items-end">
+                      <input pInputText placeholder="Code" [ngModel]="marker.code" (ngModelChange)="patchIhcMarker(item.visitServiceId, $index, { code: $event })" />
+                      <input pInputText placeholder="Antibody" [ngModel]="marker.name" (ngModelChange)="patchIhcMarker(item.visitServiceId, $index, { name: $event })" />
+                      <p-select
+                        [options]="ihcResultOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Result"
+                        [ngModel]="marker.result"
+                        (ngModelChange)="patchIhcMarker(item.visitServiceId, $index, { result: $event })"
+                        class="w-full"
+                      />
+                      <input pInputText placeholder="%" [ngModel]="marker.percent" (ngModelChange)="patchIhcMarker(item.visitServiceId, $index, { percent: $event })" />
+                      <p-select
+                        [options]="ihcIntensityOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Intensity"
+                        [showClear]="true"
+                        [ngModel]="marker.intensity"
+                        (ngModelChange)="patchIhcMarker(item.visitServiceId, $index, { intensity: $event ?? '' })"
+                        class="w-full"
+                      />
+                      <input pInputText placeholder="Score" [ngModel]="marker.score" (ngModelChange)="patchIhcMarker(item.visitServiceId, $index, { score: $event })" />
+                      <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small" (onClick)="removeIhcMarker(item.visitServiceId, $index)" />
+                    </div>
+                  }
+                </div>
+                <div class="flex flex-wrap gap-2 items-end">
+                  <p-select
+                    [options]="antibodies()"
+                    optionLabel="name"
+                    optionValue="id"
+                    placeholder="Add antibody…"
+                    [showClear]="true"
+                    [filter]="true"
+                    filterBy="code,name"
+                    [ngModel]="selectedAntibody()[item.visitServiceId]"
+                    (ngModelChange)="setSelectedAntibody(item.visitServiceId, $event)"
+                    class="min-w-[220px]"
+                  />
+                  <p-button icon="pi pi-plus" label="Add marker" size="small" [outlined]="true" (onClick)="addIhcMarker(item)" />
+                </div>
+                <textarea
+                  pTextarea
+                  rows="3"
+                  class="w-full"
+                  [ngModel]="ihc(item.visitServiceId).interpretation"
+                  (ngModelChange)="patchIhc(item.visitServiceId, { interpretation: $event })"
+                  placeholder="Interpretation / summary"
+                ></textarea>
+                <div class="station-actions !mt-0">
+                  <p-button
+                    icon="pi pi-save"
+                    label="Save IHC worksheet"
                     size="small"
                     [loading]="savingId() === item.visitServiceId"
                     (onClick)="save(item)"

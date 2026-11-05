@@ -161,10 +161,14 @@
       }
     </p>
 
-    @if (profileOf(line) === 'Semen') {
+    @if (profileOf(line) === 'Semen' || profileOf(line) === 'Ihc') {
       <p-message
         severity="info"
-        text="Unlocks this semen line and opens Result entry so you can edit the full worksheet, then finalize again."
+        [text]="
+          profileOf(line) === 'Ihc'
+            ? 'Unlocks this IHC line and opens Result entry so you can edit the antibody worksheet, then finalize again.'
+            : 'Unlocks this semen line and opens Result entry so you can edit the full worksheet, then finalize again.'
+        "
         styleClass="mb-3 w-full"
       />
       <div class="flex justify-end gap-2">
@@ -173,7 +177,7 @@
           label="Unlock → Result entry"
           icon="pi pi-external-link"
           [loading]="amendBusy()"
-          (onClick)="unlockSemenAndOpenResults()"
+          (onClick)="unlockWorksheetAndOpenResults()"
         />
       </div>
     } @else if (profileOf(line) === 'Narrative' || profileOf(line) === 'Radiology') {

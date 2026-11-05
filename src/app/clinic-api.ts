@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 
 import { API_BASE_URL } from './app.config';
 
-export type ReportProfile = 'Standard' | 'Narrative' | 'Semen' | 'Radiology';
+export type ReportProfile = 'Standard' | 'Narrative' | 'Semen' | 'Ihc' | 'Radiology';
 
 export type ClinicService = {
   id: number;
@@ -136,6 +136,7 @@ export type SampleSetup = {
   bottleColors: LookupItem[];
   sampleGroups: LookupItem[];
   outsideLabs: OutsideLab[];
+  antibodies?: LookupItem[];
 };
 
 export type CollectionLine = {
@@ -382,7 +383,7 @@ export class ClinicApi {
     return this.http.put<ServiceAdmin>(`${this.baseUrl}/api/admin/services/${id}`, body);
   }
 
-  upsertLookup(kind: 'sample-types' | 'containers' | 'bottle-colors' | 'sample-groups', body: {
+  upsertLookup(kind: 'sample-types' | 'containers' | 'bottle-colors' | 'sample-groups' | 'antibodies', body: {
     id?: number | null;
     code: string;
     name: string;

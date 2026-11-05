@@ -1,5 +1,4 @@
-import { isRichHtml, sanitizeReportHtml } from '../rich-text';
-import { parseSemenWorksheet, semenWorksheetToPrintHtml } from '../semen-report';
+import { composeReportBodyHtml, reportViewStyles } from '../report-views';
 
 type Letterhead = {
   name?: string | null;
@@ -330,56 +329,7 @@ export function printFinalReport(report: {
   }>;
 }): boolean {
   const pathwayRadiology = (report.pathway || '').toLowerCase().includes('radiology');
-  const lines = report.lines ?? [];
-  const standardRows = lines
-    .filter((line) => {
-      const profile = line.reportProfile || (pathwayRadiology ? 'Radiology' : 'Standard');
-      return profile === 'Standard';
-    })
-    .map((line) => {
-      const flags = [
-        line.isCritical ? 'CRITICAL' : '',
-        line.isAbnormal ? 'Abnormal' : '',
-        line.urgent ? 'Urgent' : '',
-      ]
-        .filter(Boolean)
-        .join(' · ');
-      const testLabel = line.parameterName
-        ? `${line.serviceName} — ${line.parameterName}`
-        : line.serviceName;
-      return `<tr>
-        <td>${escapeHtml(testLabel)}${flags ? ` <span class="flag">${escapeHtml(flags)}</span>` : ''}</td>
-        <td class="${line.isAbnormal || line.isCritical ? 'flag' : ''}">${formatResultCell(line.resultText)}</td>
-        <td>${escapeHtml(line.units || '—')}</td>
-        <td>${escapeHtml(line.referenceRange || '—')}</td>
-      </tr>`;
-    })
-    .join('');
-
-  const specialBlocks = lines
-    .filter((line) => {
-      const profile = line.reportProfile || (pathwayRadiology ? 'Radiology' : 'Standard');
-      return profile !== 'Standard';
-    })
-    .map((line) => {
-      const profile = line.reportProfile || (pathwayRadiology ? 'Radiology' : 'Standard');
-      const title = `${escapeHtml(line.serviceName)}${line.urgent ? ' <span class="flag">Urgent</span>' : ''}`;
-      if (profile === 'Semen') {
-        const semen = parseSemenWorksheet(line.resultText);
-        return `<section class="rad-block"><h3>${title}</h3>${semenWorksheetToPrintHtml(semen)}</section>`;
-      }
-      return `<section class="rad-block"><h3>${title}</h3><div class="rad-body">${formatResultCell(line.resultText)}</div></section>`;
-    })
-    .join('');
-
-  const body = [
-    standardRows
-      ? `<table><thead><tr><th>Test</th><th>Result</th><th>Units</th><th>Reference</th></tr></thead><tbody>${standardRows}</tbody></table>`
-      : '',
-    specialBlocks ? `<div class="rad-report">${specialBlocks}</div>` : '',
-  ]
-    .filter(Boolean)
-    .join('');
+  const body = composeReportBodyHtml(report.lines ?? [], report.pathway);
 
   const reportTitle = pathwayRadiology ? 'Radiology report' : 'Final report';
   const signatureBlock = pathwayRadiology
@@ -398,28 +348,14 @@ export function printFinalReport(report: {
      <div class="meta">${escapeHtml(report.visitNumber)} · ${escapeHtml(report.pathway)} · Finalized ${new Date(report.finalizedAt).toLocaleString()} by ${escapeHtml(report.finalizedByName || '—')}</div>
      <svg id="bc-0"></svg>
      <p><strong>${escapeHtml(report.patientName)}</strong> · ${escapeHtml(report.phone)} · ${report.age} yrs · ${escapeHtml(report.gender)}</p>
-     ${body || '<p>No results on this report.</p>'}
+     ${body}
      ${signatureBlock}
      <style>
-       .rad-block{margin:12px 0 18px;padding-bottom:12px;border-bottom:1px solid #e2e8f0}
-       .rad-block h3{margin:0 0 8px;font-size:14px}
-       .rad-body{font-size:12.5px;line-height:1.45}
-       .rad-body p{margin:0 0 0.55em}
-       .rad-body ul,.rad-body ol{margin:0.4em 0 0.6em 1.2em}
+       ${reportViewStyles}
        .rad-sign{margin-top:28px;max-width:280px}
        .rad-sign__line{height:1px;background:#94a3b8;margin-bottom:8px}
        .rad-sign strong{display:block;font-size:12px;margin-bottom:2px}
-       .semen-table{width:100%;border-collapse:collapse;font-size:12.5px}
-       .semen-table th,.semen-table td{border:1px solid #e2e8f0;padding:6px 8px;text-align:left}
-       .semen-table th{width:42%;background:#f8fafc;font-weight:600}
      </style>`,
     [report.visitNumber],
   );
-}
-
-function formatResultCell(value: string | null | undefined): string {
-  if (!value) {
-    return '—';
-  }
-  return isRichHtml(value) ? sanitizeReportHtml(value) : escapeHtml(value);
 }
