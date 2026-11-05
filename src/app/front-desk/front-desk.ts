@@ -127,10 +127,12 @@ export class FrontDesk implements OnInit {
       const fee = service?.fee ?? 0;
       const discount = Math.min(Math.max(line.discount, 0), fee);
       const category = service?.category ?? '';
+      const pathway = service?.pathway ?? '';
       return {
         ...line,
         name: service?.name ?? 'Service',
         category,
+        pathway,
         allowsStaff: category.toLowerCase() === 'consultation',
         normalMinutes: service?.normalMinutes ?? 60,
         urgentMinutes: service?.urgentMinutes ?? 30,

@@ -210,7 +210,12 @@
                       >
                         <span
                           ><strong class="text-[12px]">{{ service.name }}</strong>
-                          <small class="mt-0 block text-[10px] font-medium text-[#64748b]">{{ service.category }}</small></span
+                          <small class="mt-0 block text-[10px] font-medium text-[#64748b]"
+                            >{{ service.category }}
+                            @if (service.pathway) {
+                              · {{ service.pathway }}
+                            }</small
+                          ></span
                         >
                         <span class="text-[12px] font-semibold tabular-nums">{{
                           service.fee | currency: 'PKR' : 'symbol-narrow' : '1.0-0'
@@ -241,7 +246,12 @@
                     >
                       <div class="min-w-0">
                         <strong class="block truncate text-[12px] font-semibold">{{ line.name }}</strong>
-                        <small class="mt-0 block truncate text-[10px] text-[#64748b]">{{ line.category }}</small>
+                        <small class="mt-0 block truncate text-[10px] text-[#64748b]"
+                          >{{ line.category }}
+                          @if (line.pathway) {
+                            · {{ line.pathway }}
+                          }</small
+                        >
                       </div>
                       <p-inputNumber
                         [ngModel]="line.discount"

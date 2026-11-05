@@ -57,9 +57,9 @@ export const stationGuard: CanActivateFn = (route) => {
     return true;
   }
 
-  // Settings may still be loading on first navigation after login — allow and let shell redirect via nav.
+  // Deny station routes until RoleStations are cached (login/shell load settings first).
   if (!readClinicSettings()) {
-    return true;
+    return router.createUrlTree(['/dashboard']);
   }
 
   if (roleAllowsStation(station, auth.roleId)) {

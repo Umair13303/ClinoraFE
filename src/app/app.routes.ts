@@ -10,6 +10,7 @@ import { CollectionStation } from './stations/collection-station';
 import { FinalizeStation } from './stations/finalize-station';
 import { OutsideLabStation } from './stations/outside-lab-station';
 import { RadiologyStation } from './stations/radiology-station';
+import { ReceivingStation } from './stations/receiving-station';
 import { ReportCollectionStation } from './stations/report-collection-station';
 import { ResultsStation } from './stations/results-station';
 import { WorkspaceShell } from './workspace-shell/workspace-shell';
@@ -27,6 +28,7 @@ export const routes: Routes = [
       { path: 'desk', component: FrontDesk, data: { station: 'FrontDesk' } },
       { path: 'collection', component: CollectionStation, data: { station: 'Phlebotomy' } },
       { path: 'barcode', component: BarcodeStation, data: { station: 'Phlebotomy' } },
+      { path: 'receiving', component: ReceivingStation, data: { station: 'Lab' } },
       { path: 'results', component: ResultsStation, data: { station: 'Lab' } },
       { path: 'finalize', component: FinalizeStation, data: { station: 'Doctor' } },
       { path: 'reports', component: ReportCollectionStation, data: { station: 'FrontDesk' } },

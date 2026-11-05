@@ -7,6 +7,9 @@ import { InputText } from 'primeng/inputtext';
 import { Message } from 'primeng/message';
 
 import { API_BASE_URL } from '../app.config';
+import { cacheClinicSettings } from '../auth/station-guard';
+import { ClinicApi } from '../clinic-api';
+import { cacheClinicLetterhead } from '../print/print';
 
 type LoginResponse = {
   token: string;
@@ -28,6 +31,7 @@ type LoginResponse = {
 export class Login {
   private readonly http = inject(HttpClient);
   private readonly api = inject(API_BASE_URL);
+  private readonly clinicApi = inject(ClinicApi);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
 
@@ -71,8 +75,18 @@ export class Login {
           if (payload.branchId) {
             sessionStorage.setItem('clinora.branchId', String(payload.branchId));
           }
-          this.submitting.set(false);
-          void this.router.navigateByUrl('/dashboard');
+          this.clinicApi.clinicSettings().subscribe({
+            next: (settings) => {
+              cacheClinicSettings(settings);
+              cacheClinicLetterhead(settings);
+              this.submitting.set(false);
+              void this.router.navigateByUrl('/dashboard');
+            },
+            error: () => {
+              this.submitting.set(false);
+              void this.router.navigateByUrl('/dashboard');
+            },
+          });
         },
         error: (err: HttpErrorResponse) => {
           this.submitting.set(false);

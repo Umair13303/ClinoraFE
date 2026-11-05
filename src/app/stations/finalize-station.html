@@ -164,9 +164,18 @@
     @if (profileOf(line) === 'Semen') {
       <p-message
         severity="info"
-        text="Semen worksheets should be amended in Result entry (full worksheet), then finalize again."
+        text="Unlocks this semen line and opens Result entry so you can edit the full worksheet, then finalize again."
         styleClass="mb-3 w-full"
       />
+      <div class="flex justify-end gap-2">
+        <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="closeAmend()" />
+        <p-button
+          label="Unlock → Result entry"
+          icon="pi pi-external-link"
+          [loading]="amendBusy()"
+          (onClick)="unlockSemenAndOpenResults()"
+        />
+      </div>
     } @else if (profileOf(line) === 'Narrative' || profileOf(line) === 'Radiology') {
       <p-editor
         class="clinora-editor clinora-editor--compact block mb-3"
@@ -174,15 +183,6 @@
         [modules]="editorModules"
         [style]="{ height: '240px' }"
       />
-    } @else {
-      <textarea pTextarea rows="3" class="mb-2 w-full" [(ngModel)]="amendText" placeholder="Result"></textarea>
-      <div class="mb-3 grid grid-cols-2 gap-2">
-        <input pInputText placeholder="Units" [(ngModel)]="amendUnits" />
-        <input pInputText placeholder="Reference" [(ngModel)]="amendRange" />
-      </div>
-    }
-
-    @if (profileOf(line) !== 'Semen') {
       <label class="mb-3 flex items-center gap-2 text-[12px] font-semibold">
         <p-checkbox [binary]="true" [(ngModel)]="amendCritical" />
         Critical
@@ -191,9 +191,38 @@
         <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="closeAmend()" />
         <p-button label="Save amendment" icon="pi pi-save" [loading]="amendBusy()" (onClick)="saveAmend()" />
       </div>
+    } @else if (amendParams.length > 1) {
+      <div class="mb-3 grid gap-2">
+        @for (row of amendParams; track row.parameterName) {
+          <div class="grid grid-cols-[6.5rem_1fr_5rem_6rem_auto] items-center gap-2 max-[700px]:grid-cols-1">
+            <strong class="text-[12px]">{{ row.parameterName || 'Param' }}</strong>
+            <input pInputText [(ngModel)]="row.text" [placeholder]="row.parameterName || 'Value'" />
+            <input pInputText [(ngModel)]="row.units" placeholder="Units" />
+            <input pInputText [(ngModel)]="row.range" placeholder="Ref" />
+            <label class="flex items-center gap-1 text-[11px] font-semibold">
+              <p-checkbox [binary]="true" [(ngModel)]="row.critical" />
+              Crit
+            </label>
+          </div>
+        }
+      </div>
+      <div class="flex justify-end gap-2">
+        <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="closeAmend()" />
+        <p-button label="Save amendment" icon="pi pi-save" [loading]="amendBusy()" (onClick)="saveAmend()" />
+      </div>
     } @else {
-      <div class="flex justify-end">
-        <p-button label="Close" severity="secondary" [outlined]="true" (onClick)="closeAmend()" />
+      <textarea pTextarea rows="3" class="mb-2 w-full" [(ngModel)]="amendText" placeholder="Result"></textarea>
+      <div class="mb-3 grid grid-cols-2 gap-2">
+        <input pInputText placeholder="Units" [(ngModel)]="amendUnits" />
+        <input pInputText placeholder="Reference" [(ngModel)]="amendRange" />
+      </div>
+      <label class="mb-3 flex items-center gap-2 text-[12px] font-semibold">
+        <p-checkbox [binary]="true" [(ngModel)]="amendCritical" />
+        Critical
+      </label>
+      <div class="flex justify-end gap-2">
+        <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="closeAmend()" />
+        <p-button label="Save amendment" icon="pi pi-save" [loading]="amendBusy()" (onClick)="saveAmend()" />
       </div>
     }
   }

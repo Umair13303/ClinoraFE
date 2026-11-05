@@ -70,6 +70,16 @@ export class Dashboard implements OnInit {
         station: 'Phlebotomy',
       },
       {
+        key: 'collected',
+        label: 'Awaiting receive',
+        hint: 'Lab receiving queue',
+        value: s.collected ?? 0,
+        route: '/receiving',
+        icon: 'pi pi-qrcode',
+        tone: 'amber',
+        station: 'Lab',
+      },
+      {
         key: 'inLab',
         label: 'In lab',
         hint: 'Result entry pending',
@@ -141,7 +151,12 @@ export class Dashboard implements OnInit {
   );
 
   protected readonly attentionCount = computed(
-    () => this.metrics().filter((m) => m.value > 0 && (m.alert || m.key === 'collection' || m.key === 'finalize')).length,
+    () =>
+      this.metrics().filter(
+        (m) =>
+          m.value > 0 &&
+          (m.alert || m.key === 'collection' || m.key === 'collected' || m.key === 'finalize'),
+      ).length,
   );
 
   protected readonly queueShare = computed(() => {
@@ -152,8 +167,9 @@ export class Dashboard implements OnInit {
     }
     return [
       { label: 'Collection', value: s.awaitingCollection, tone: 'teal' },
+      { label: 'Receive', value: s.collected ?? 0, tone: 'amber' },
       { label: 'In lab', value: s.inLab, tone: 'sky' },
-      { label: 'Sent out', value: s.sentOut, tone: 'amber' },
+      { label: 'Sent out', value: s.sentOut, tone: 'slate' },
       { label: 'Finalize', value: s.awaitingFinalize, tone: 'violet' },
       { label: 'Radiology', value: s.radiology, tone: 'slate' },
     ].map((row) => ({ ...row, pct: Math.round((row.value / total) * 100) }));

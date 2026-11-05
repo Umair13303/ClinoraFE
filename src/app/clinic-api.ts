@@ -122,6 +122,7 @@ export type ClinicSettings = {
 
 export type WorklistSummary = {
   awaitingCollection: number;
+  collected: number;
   inLab: number;
   sentOut: number;
   awaitingFinalize: number;
@@ -185,7 +186,24 @@ export type SampleBarcode = {
   sampleGroupName: string | null;
   isSendOut: boolean;
   outsideLabName: string | null;
+  sampleStatus?: string;
   collectedAt: string;
+  receivedAt?: string | null;
+  receivedBy?: string | null;
+  tests: string[];
+};
+
+export type ReceivingSample = {
+  sampleId: number;
+  barcode: string;
+  visitNumber: string;
+  patientName: string;
+  sampleGroupName: string | null;
+  sampleTypeName: string;
+  containerName: string;
+  bottleColorName: string;
+  collectedAt: string;
+  phlebotomistName: string | null;
   tests: string[];
 };
 
@@ -455,6 +473,23 @@ export class ClinicApi {
     return this.http.get<SendOutSample[]>(`${this.baseUrl}/api/samples/send-out-pending`);
   }
 
+  receivingWorklist() {
+    return this.http.get<ReceivingSample[]>(`${this.baseUrl}/api/worklist/receiving`);
+  }
+
+  sampleByBarcode(code: string) {
+    let params = new HttpParams().set('code', code);
+    return this.http.get<SampleBarcode>(`${this.baseUrl}/api/samples/by-barcode`, { params });
+  }
+
+  receiveSample(id: number, body: { receivedBy?: string | null }) {
+    return this.http.post<SampleBarcode>(`${this.baseUrl}/api/samples/${id}/receive`, body);
+  }
+
+  receiveSampleByBarcode(body: { barcode: string; receivedBy?: string | null }) {
+    return this.http.post<SampleBarcode>(`${this.baseUrl}/api/samples/receive-by-barcode`, body);
+  }
+
   resultsWorklist() {
     return this.http.get<ResultWorkItem[]>(`${this.baseUrl}/api/worklist/results`);
   }
@@ -561,6 +596,10 @@ export class ClinicApi {
     },
   ) {
     return this.http.put<RadiologyTemplate>(`${this.baseUrl}/api/radiology/templates/${id}`, payload);
+  }
+
+  radiologyPerform(body: { visitServiceId: number; performedByName?: string | null }) {
+    return this.http.post<{ message: string; status?: string }>(`${this.baseUrl}/api/radiology/perform`, body);
   }
 
   radiologyComplete(body: {

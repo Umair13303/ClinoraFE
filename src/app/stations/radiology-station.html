@@ -2,7 +2,7 @@
   <header class="desk-top">
     <div class="desk-top__title">
       <strong>Radiology</strong>
-      <span>Template → edit → radiologist sign</span>
+      <span>Perform study → findings → radiologist approve &amp; sign</span>
     </div>
     <div class="station-toolbar">
       <p-iconfield>
@@ -45,21 +45,26 @@
     <div class="station-banner">
       <div>
         <strong>{{ visible().length }} stud{{ visible().length === 1 ? 'y' : 'ies' }} in imaging queue</strong>
-        <span>Pick a report template, edit findings, then sign as radiologist.</span>
+        <span>Mark performed after the X-Ray, enter the report, then approve &amp; sign. Final reports collect at /reports.</span>
       </div>
       <p-tag [value]="visible().length ? 'Imaging' : 'Clear'" [severity]="visible().length ? 'info' : 'success'" />
     </div>
 
     @if (signedReport(); as report) {
       <div class="mb-3 rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-3 text-[12.5px] text-[#14532d]">
-        <strong class="block">Signed report #{{ report.id }}</strong>
-        <span>{{ report.visitNumber }} · {{ report.patientName }} · {{ report.finalizedByName }}</span>
+        <strong class="block">Signed radiology report #{{ report.id }}</strong>
+        <span>{{ report.visitNumber }} · {{ report.patientName }} · signed by {{ report.finalizedByName }}</span>
         @for (line of report.lines; track line.serviceName) {
           <div
             class="rad-html-preview mt-2 max-h-40 overflow-auto rounded border border-[#d1fae5] bg-white p-2 text-[12px] text-[#064e3b]"
             [innerHTML]="previewHtml(line.resultText)"
           ></div>
         }
+        <div class="mt-2">
+          <a routerLink="/reports" class="text-[12px] font-semibold text-[#166534] underline">
+            Open report collection
+          </a>
+        </div>
       </div>
     }
 
@@ -68,7 +73,7 @@
         <i class="pi pi-image"></i>
         <div>
           <strong>No radiology studies in queue</strong>
-          <p>Radiology pathway visits land here after front desk registration.</p>
+          <p>After front desk registers an X-Ray / radiology service (paid), the patient appears here directly — no sample collection.</p>
         </div>
       </div>
     } @else {
@@ -93,49 +98,64 @@
                   <p-tag value="Urgent" severity="danger" />
                 }
                 <p-tag
-                  [value]="item.status === 'AwaitingImaging' ? 'Awaiting imaging' : 'Draft ready'"
-                  [severity]="item.status === 'AwaitingImaging' ? 'warn' : 'success'"
+                  [value]="statusLabel(item.status)"
+                  [severity]="statusSeverity(item.status)"
                 />
               </div>
             </div>
             <div class="station-card__body grid gap-2">
-              <p-select
-                [options]="templatesFor(item)"
-                optionLabel="name"
-                optionValue="id"
-                [ngModel]="selectedTemplateId()[item.visitServiceId] ?? null"
-                (ngModelChange)="onTemplateSelect(item, $event)"
-                placeholder="Select report template"
-                [showClear]="true"
-                styleClass="w-full"
-                size="small"
-              />
-              <p-editor
-                class="clinora-editor clinora-editor--compact block"
-                [ngModel]="findings()[item.visitServiceId] || ''"
-                (ngModelChange)="setFindings(item.visitServiceId, $event)"
-                [modules]="editorModules"
-                [style]="{ height: '260px' }"
-                placeholder="Select a template, then edit the report"
-              />
-              <div class="station-actions !mt-0">
-                <p-button
-                  icon="pi pi-save"
-                  label="Save draft"
-                  severity="secondary"
-                  [outlined]="true"
+              @if (item.status === 'AwaitingImaging') {
+                <p class="m-0 text-[12px] text-[#64748b]">
+                  Patient is ready for imaging. After the X-Ray is taken, mark it performed so the radiologist can report.
+                </p>
+                <div class="station-actions !mt-0">
+                  <p-button
+                    icon="pi pi-camera"
+                    label="Mark X-Ray performed"
+                    size="small"
+                    [loading]="busyId() === item.visitServiceId"
+                    (onClick)="markPerformed(item)"
+                  />
+                </div>
+              } @else if (canEnterFindings(item)) {
+                <p-select
+                  [options]="templatesFor(item)"
+                  optionLabel="name"
+                  optionValue="id"
+                  [ngModel]="selectedTemplateId()[item.visitServiceId] ?? null"
+                  (ngModelChange)="onTemplateSelect(item, $event)"
+                  placeholder="Select report template"
+                  [showClear]="true"
+                  styleClass="w-full"
                   size="small"
-                  [loading]="busyId() === item.visitServiceId"
-                  (onClick)="saveDraft(item)"
                 />
-                <p-button
-                  icon="pi pi-verified"
-                  label="Sign report"
-                  size="small"
-                  [loading]="busyId() === item.visitServiceId"
-                  (onClick)="sign(item)"
+                <p-editor
+                  class="clinora-editor clinora-editor--compact block"
+                  [ngModel]="findings()[item.visitServiceId] || ''"
+                  (ngModelChange)="setFindings(item.visitServiceId, $event)"
+                  [modules]="editorModules"
+                  [style]="{ height: '260px' }"
+                  placeholder="Select a template, then edit findings / impression"
                 />
-              </div>
+                <div class="station-actions !mt-0">
+                  <p-button
+                    icon="pi pi-save"
+                    label="Save draft"
+                    severity="secondary"
+                    [outlined]="true"
+                    size="small"
+                    [loading]="busyId() === item.visitServiceId"
+                    (onClick)="saveDraft(item)"
+                  />
+                  <p-button
+                    icon="pi pi-verified"
+                    label="Approve &amp; sign"
+                    size="small"
+                    [loading]="busyId() === item.visitServiceId"
+                    (onClick)="sign(item)"
+                  />
+                </div>
+              }
             </div>
           </p-card>
         }

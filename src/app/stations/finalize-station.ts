@@ -2,6 +2,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { Button } from 'primeng/button';
 import { Card } from 'primeng/card';
 import { Checkbox } from 'primeng/checkbox';
@@ -19,6 +20,14 @@ import { printFinalReport } from '../print/print';
 import { plainToEditorHtml, radiologyEditorModules, sanitizeReportHtml, stripHtml } from '../rich-text';
 import { parseSemenWorksheet, semenWorksheetToPrintHtml } from '../semen-report';
 import { readPref, writePref } from './station-prefs';
+
+type AmendParamRow = {
+  parameterName: string;
+  text: string;
+  units: string;
+  range: string;
+  critical: boolean;
+};
 
 @Component({
   selector: 'app-finalize-station',
@@ -61,6 +70,7 @@ export class FinalizeStation implements OnInit {
   protected amendUnits = '';
   protected amendRange = '';
   protected amendCritical = false;
+  protected amendParams: AmendParamRow[] = [];
   protected readonly amendBusy = signal(false);
 
   protected readonly visitGroups = computed(() => {
@@ -104,9 +114,13 @@ export class FinalizeStation implements OnInit {
     this.error.set('');
     this.api.finalizeWorklist().subscribe({
       next: (items) => {
-        this.items.set(items);
+        // Radiology is approved on /radiology — keep doctor finalize lab-only.
+        const labOnly = items.filter(
+          (item) => item.reportProfile !== 'Radiology' && item.status !== 'Imaged' && item.status !== 'Performed',
+        );
+        this.items.set(labOnly);
         const selected: Record<number, boolean> = {};
-        for (const item of items) {
+        for (const item of labOnly) {
           selected[item.visitServiceId] = true;
         }
         this.selected.set(selected);
@@ -197,12 +211,25 @@ export class FinalizeStation implements OnInit {
   protected openAmend(line: ResultWorkItem): void {
     this.amendLine.set(line);
     const profile = this.profileOf(line);
+    this.amendParams = [];
     if (profile === 'Semen') {
-      this.amendText = '';
+      this.amendText = line.existingResultText ?? '';
     } else if (profile === 'Narrative' || profile === 'Radiology') {
       this.amendText = plainToEditorHtml(line.existingResultText);
     } else {
-      this.amendText = line.existingResultText ?? '';
+      const rows = line.existingResults ?? [];
+      if (rows.length > 1) {
+        this.amendParams = rows.map((r) => ({
+          parameterName: r.parameterName || '',
+          text: r.resultText ?? '',
+          units: r.units ?? '',
+          range: r.referenceRange ?? '',
+          critical: !!r.isCritical,
+        }));
+        this.amendText = '';
+      } else {
+        this.amendText = line.existingResultText ?? '';
+      }
     }
     this.amendUnits = line.existingUnits ?? '';
     this.amendRange = line.existingReferenceRange ?? '';
@@ -214,12 +241,49 @@ export class FinalizeStation implements OnInit {
     this.amendOpen.set(visible);
     if (!visible) {
       this.amendLine.set(null);
+      this.amendParams = [];
     }
   }
 
   protected closeAmend(): void {
     this.amendOpen.set(false);
     this.amendLine.set(null);
+    this.amendParams = [];
+  }
+
+  protected unlockSemenAndOpenResults(): void {
+    const line = this.amendLine();
+    if (!line) {
+      return;
+    }
+    const text = (line.existingResultText ?? '').trim();
+    if (!text) {
+      this.error.set('No semen worksheet to unlock.');
+      return;
+    }
+    this.amendBusy.set(true);
+    this.error.set('');
+    this.api
+      .saveResult({
+        visitServiceId: line.visitServiceId,
+        resultText: text,
+        parameterName: line.existingParameterName ?? 'Semen worksheet',
+        enteredByName: this.doctor || null,
+        amend: true,
+        source: 'Amend',
+      })
+      .subscribe({
+        next: () => {
+          this.amendBusy.set(false);
+          this.closeAmend();
+          this.info.set('Semen unlocked — edit worksheet in Result entry, then finalize again.');
+          void this.router.navigateByUrl('/results');
+        },
+        error: (err) => {
+          this.amendBusy.set(false);
+          this.error.set(typeof err.error?.message === 'string' ? err.error.message : 'Amend failed.');
+        },
+      });
   }
 
   protected saveAmend(): void {
@@ -229,10 +293,47 @@ export class FinalizeStation implements OnInit {
     }
     const profile = this.profileOf(line);
     if (profile === 'Semen') {
-      this.error.set('Semen worksheets should be amended in Result entry.');
-      this.closeAmend();
+      this.unlockSemenAndOpenResults();
       return;
     }
+
+    if (this.amendParams.length > 1) {
+      const filled = this.amendParams.filter((r) => r.text.trim());
+      if (filled.length === 0) {
+        this.error.set('Enter at least one parameter value.');
+        return;
+      }
+      this.amendBusy.set(true);
+      this.error.set('');
+      forkJoin(
+        filled.map((row) =>
+          this.api.saveResult({
+            visitServiceId: line.visitServiceId,
+            resultText: row.text.trim(),
+            units: row.units.trim() || null,
+            referenceRange: row.range.trim() || null,
+            parameterName: row.parameterName || null,
+            enteredByName: this.doctor || null,
+            amend: true,
+            source: 'Amend',
+            isCritical: row.critical,
+          }),
+        ),
+      ).subscribe({
+        next: () => {
+          this.amendBusy.set(false);
+          this.closeAmend();
+          this.info.set('Amendment saved. Finalize again.');
+          this.reload();
+        },
+        error: (err) => {
+          this.amendBusy.set(false);
+          this.error.set(typeof err.error?.message === 'string' ? err.error.message : 'Amend failed.');
+        },
+      });
+      return;
+    }
+
     const text = this.amendText.trim();
     if (profile === 'Narrative' || profile === 'Radiology') {
       if (stripHtml(text).length < 3) {

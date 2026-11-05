@@ -381,20 +381,34 @@ export function printFinalReport(report: {
     .filter(Boolean)
     .join('');
 
+  const reportTitle = pathwayRadiology ? 'Radiology report' : 'Final report';
+  const signatureBlock = pathwayRadiology
+    ? `<div class="rad-sign">
+         <div class="rad-sign__line"></div>
+         <strong>Electronically signed</strong>
+         <div>${escapeHtml(report.finalizedByName || 'Radiologist')}</div>
+         <div class="meta">${new Date(report.finalizedAt).toLocaleString()}</div>
+       </div>`
+    : '';
+
   return openPrintWindow(
     `Report ${report.visitNumber}`,
     `${letterheadHtml()}
-     <h2>Final report</h2>
+     <h2>${reportTitle}</h2>
      <div class="meta">${escapeHtml(report.visitNumber)} · ${escapeHtml(report.pathway)} · Finalized ${new Date(report.finalizedAt).toLocaleString()} by ${escapeHtml(report.finalizedByName || '—')}</div>
      <svg id="bc-0"></svg>
      <p><strong>${escapeHtml(report.patientName)}</strong> · ${escapeHtml(report.phone)} · ${report.age} yrs · ${escapeHtml(report.gender)}</p>
      ${body || '<p>No results on this report.</p>'}
+     ${signatureBlock}
      <style>
        .rad-block{margin:12px 0 18px;padding-bottom:12px;border-bottom:1px solid #e2e8f0}
        .rad-block h3{margin:0 0 8px;font-size:14px}
        .rad-body{font-size:12.5px;line-height:1.45}
        .rad-body p{margin:0 0 0.55em}
        .rad-body ul,.rad-body ol{margin:0.4em 0 0.6em 1.2em}
+       .rad-sign{margin-top:28px;max-width:280px}
+       .rad-sign__line{height:1px;background:#94a3b8;margin-bottom:8px}
+       .rad-sign strong{display:block;font-size:12px;margin-bottom:2px}
        .semen-table{width:100%;border-collapse:collapse;font-size:12.5px}
        .semen-table th,.semen-table td{border:1px solid #e2e8f0;padding:6px 8px;text-align:left}
        .semen-table th{width:42%;background:#f8fafc;font-weight:600}

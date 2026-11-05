@@ -8,13 +8,14 @@ import { BranchContext, readAuth } from '../branch-context';
 import { BranchDto, ClinicApi, ClinicSettings } from '../clinic-api';
 import { cacheClinicLetterhead } from '../print/print';
 
-type NavItem = { path: string; label: string; station: string };
+type NavItem = { path: string; label: string; station: string | null };
 
 const ALL_NAV: NavItem[] = [
-  { path: '/dashboard', label: 'Dashboard', station: 'Admin' },
+  { path: '/dashboard', label: 'Dashboard', station: null },
   { path: '/desk', label: 'Front desk', station: 'FrontDesk' },
   { path: '/collection', label: 'Sample collection', station: 'Phlebotomy' },
   { path: '/barcode', label: 'Barcode', station: 'Phlebotomy' },
+  { path: '/receiving', label: 'Lab receiving', station: 'Lab' },
   { path: '/results', label: 'Result entry', station: 'Lab' },
   { path: '/finalize', label: 'Finalize', station: 'Doctor' },
   { path: '/reports', label: 'Report collection', station: 'FrontDesk' },
@@ -44,12 +45,12 @@ export class WorkspaceShell implements OnInit {
     const stations =
       settings?.roleStations?.[String(roleId)] ??
       settings?.roleStations?.['default'] ??
-      ALL_NAV.map((n) => n.station);
+      ALL_NAV.map((n) => n.station).filter((s): s is string => !!s);
     const allowed = new Set(stations);
     if (allowed.has('Admin')) {
       return ALL_NAV;
     }
-    return ALL_NAV.filter((item) => allowed.has(item.station));
+    return ALL_NAV.filter((item) => item.station == null || allowed.has(item.station));
   });
 
   ngOnInit(): void {

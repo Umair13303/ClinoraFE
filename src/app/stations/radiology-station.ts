@@ -1,7 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Button } from 'primeng/button';
 import { Card } from 'primeng/card';
 import { Editor } from 'primeng/editor';
@@ -30,6 +30,7 @@ import { readPref, writePref } from './station-prefs';
     Message,
     Select,
     Tag,
+    RouterLink,
   ],
   templateUrl: './radiology-station.html',
 })
@@ -77,17 +78,38 @@ export class RadiologyStation implements OnInit {
       next: (items) => {
         this.items.set(items);
         const map: Record<number, string> = { ...this.findings() };
+        const templateMap: Record<number, number | null> = { ...this.selectedTemplateId() };
         for (const item of items) {
           if (item.existingFindings && !map[item.visitServiceId]) {
             map[item.visitServiceId] = plainToEditorHtml(item.existingFindings);
           }
+          if (item.templateName && templateMap[item.visitServiceId] == null) {
+            const match = this.templates().find((t) => t.name === item.templateName);
+            if (match) {
+              templateMap[item.visitServiceId] = match.id;
+            }
+          }
         }
         this.findings.set(map);
+        this.selectedTemplateId.set(templateMap);
       },
       error: () => this.error.set('Could not load radiology worklist.'),
     });
     this.api.radiologyTemplates().subscribe({
-      next: (list) => this.templates.set(list),
+      next: (list) => {
+        this.templates.set(list);
+        // Re-match template names once templates arrive.
+        const templateMap: Record<number, number | null> = { ...this.selectedTemplateId() };
+        for (const item of this.items()) {
+          if (item.templateName && templateMap[item.visitServiceId] == null) {
+            const match = list.find((t) => t.name === item.templateName);
+            if (match) {
+              templateMap[item.visitServiceId] = match.id;
+            }
+          }
+        }
+        this.selectedTemplateId.set(templateMap);
+      },
       error: () => {
         /* templates optional on first load */
       },
@@ -98,6 +120,36 @@ export class RadiologyStation implements OnInit {
     return this.templates().filter(
       (t) => !t.serviceIds?.length || t.serviceIds.includes(item.serviceId),
     );
+  }
+
+  protected statusLabel(status: string): string {
+    switch (status) {
+      case 'AwaitingImaging':
+        return 'Awaiting imaging';
+      case 'Performed':
+        return 'Performed';
+      case 'Imaged':
+        return 'Draft ready';
+      default:
+        return status;
+    }
+  }
+
+  protected statusSeverity(status: string): 'warn' | 'info' | 'success' | 'secondary' {
+    switch (status) {
+      case 'AwaitingImaging':
+        return 'warn';
+      case 'Performed':
+        return 'info';
+      case 'Imaged':
+        return 'success';
+      default:
+        return 'secondary';
+    }
+  }
+
+  protected canEnterFindings(item: RadiologyWorkItem): boolean {
+    return item.status === 'Performed' || item.status === 'Imaged';
   }
 
   protected onPerformedBy(value: string): void {
@@ -125,6 +177,31 @@ export class RadiologyStation implements OnInit {
     return this.sanitizer.bypassSecurityTrustHtml(sanitizeReportHtml(html));
   }
 
+  protected markPerformed(item: RadiologyWorkItem): void {
+    this.busyId.set(item.visitServiceId);
+    this.error.set('');
+    this.info.set('');
+    writePref('radiologist', this.performedBy);
+    this.api
+      .radiologyPerform({
+        visitServiceId: item.visitServiceId,
+        performedByName: this.performedBy || null,
+      })
+      .subscribe({
+        next: () => {
+          this.busyId.set(null);
+          this.info.set(`Marked ${item.serviceName} as performed. Enter findings, then approve & sign.`);
+          this.reload();
+        },
+        error: (err: { error?: { message?: string } }) => {
+          this.busyId.set(null);
+          this.error.set(
+            typeof err.error?.message === 'string' ? err.error.message : 'Could not mark study performed.',
+          );
+        },
+      });
+  }
+
   protected saveDraft(item: RadiologyWorkItem): void {
     this.submit(item, false);
   }
@@ -137,6 +214,10 @@ export class RadiologyStation implements OnInit {
     const text = (this.findings()[item.visitServiceId] || '').trim();
     if (stripHtml(text).length < 3) {
       this.error.set('Select a template and edit the report before saving.');
+      return;
+    }
+    if (sign && this.performedBy.trim().length < 2) {
+      this.error.set('Enter the radiologist name before approving and signing.');
       return;
     }
     const templateId = this.selectedTemplateId()[item.visitServiceId] ?? null;
@@ -175,8 +256,8 @@ export class RadiologyStation implements OnInit {
           }
           this.info.set(
             printed
-              ? `Signed ${item.serviceName} · print dialog opened`
-              : `Signed ${item.serviceName} · allow popups to print, or use Report collection`,
+              ? `Approved & signed ${item.serviceName} · print dialog opened · also available in Report collection`
+              : `Approved & signed ${item.serviceName} · allow popups to print, or open Report collection`,
           );
           this.reload();
         },
@@ -188,7 +269,7 @@ export class RadiologyStation implements OnInit {
     this.api.radiologyComplete(payload).subscribe({
       next: () => {
         this.busyId.set(null);
-        this.info.set(`Draft saved for ${item.serviceName}. Radiologist can sign when ready.`);
+        this.info.set(`Draft saved for ${item.serviceName}. Approve & sign when ready.`);
         this.reload();
       },
       error: onError,
