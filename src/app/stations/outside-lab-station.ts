@@ -41,7 +41,9 @@ export class OutsideLabStation implements OnInit {
   protected readonly shipments = signal<Shipment[]>([]);
   protected readonly labs = signal<OutsideLab[]>([]);
   protected readonly picked = signal<Record<number, boolean>>({});
-  protected readonly receiveDrafts = signal<Record<number, string>>({});
+  protected readonly receiveDrafts = signal<
+    Record<number, { resultText: string; units: string; referenceRange: string; parameterName: string }>
+  >({});
   protected readonly filter = signal('');
   protected readonly error = signal('');
   protected readonly info = signal('');
@@ -111,8 +113,30 @@ export class OutsideLabStation implements OnInit {
     this.picked.update((map) => ({ ...map, [id]: checked }));
   }
 
-  protected setReceiveDraft(id: number, value: string): void {
-    this.receiveDrafts.update((map) => ({ ...map, [id]: value }));
+  protected receiveDraft(id: number): {
+    resultText: string;
+    units: string;
+    referenceRange: string;
+    parameterName: string;
+  } {
+    return (
+      this.receiveDrafts()[id] ?? {
+        resultText: '',
+        units: '',
+        referenceRange: '',
+        parameterName: '',
+      }
+    );
+  }
+
+  protected patchReceiveDraft(
+    id: number,
+    patch: Partial<{ resultText: string; units: string; referenceRange: string; parameterName: string }>,
+  ): void {
+    this.receiveDrafts.update((map) => ({
+      ...map,
+      [id]: { ...this.receiveDraft(id), ...patch },
+    }));
   }
 
   protected ship(): void {
@@ -159,13 +183,19 @@ export class OutsideLabStation implements OnInit {
 
   protected receive(shipment: Shipment): void {
     const items = shipment.items
-      .map((item) => ({
-        visitServiceId: item.visitServiceId,
-        resultText: (this.receiveDrafts()[item.visitServiceId] || '').trim(),
-      }))
+      .map((item) => {
+        const d = this.receiveDraft(item.visitServiceId);
+        return {
+          visitServiceId: item.visitServiceId,
+          resultText: d.resultText.trim(),
+          units: d.units.trim() || null,
+          referenceRange: d.referenceRange.trim() || null,
+          parameterName: d.parameterName.trim() || null,
+        };
+      })
       .filter((i) => i.resultText);
     if (items.length === 0) {
-      this.error.set('Paste at least one outside result before marking received.');
+      this.error.set('Enter at least one outside result before marking received.');
       return;
     }
     this.receivingId.set(shipment.id);

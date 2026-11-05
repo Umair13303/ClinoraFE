@@ -13,6 +13,7 @@ import { Select } from 'primeng/select';
 import { Tag } from 'primeng/tag';
 
 import { ClinicApi, RadiologyTemplate, RadiologyWorkItem, ReportDto } from '../clinic-api';
+import { printFinalReport } from '../print/print';
 import { plainToEditorHtml, radiologyEditorModules, sanitizeReportHtml, stripHtml } from '../rich-text';
 import { readPref, writePref } from './station-prefs';
 
@@ -164,7 +165,19 @@ export class RadiologyStation implements OnInit {
         next: (res) => {
           this.busyId.set(null);
           this.signedReport.set(res);
-          this.info.set(`Signed ${item.serviceName} · ${item.patientName}`);
+          const printed = printFinalReport(res);
+          if (printed) {
+            this.api.markReportPrinted(res.id).subscribe({
+              next: (mark) => {
+                this.signedReport.update((r) => (r ? { ...r, printCount: mark.printCount } : r));
+              },
+            });
+          }
+          this.info.set(
+            printed
+              ? `Signed ${item.serviceName} · print dialog opened`
+              : `Signed ${item.serviceName} · allow popups to print, or use Report collection`,
+          );
           this.reload();
         },
         error: onError,

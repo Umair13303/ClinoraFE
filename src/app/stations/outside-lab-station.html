@@ -158,14 +158,40 @@
                     <span class="station-chip station-chip--mono">{{ item.barcode }}</span>
                     <span class="ml-2 text-[12px]">{{ item.patientName }} · {{ item.serviceName }}</span>
                     @if (shipment.status !== 'Received') {
-                      <textarea
-                        pTextarea
-                        rows="1"
-                        class="mt-2 w-full"
-                        [ngModel]="receiveDrafts()[item.visitServiceId] || ''"
-                        (ngModelChange)="setReceiveDraft(item.visitServiceId, $event)"
-                        placeholder="Paste outside result (optional)"
-                      ></textarea>
+                      <div class="mt-2 grid gap-1.5">
+                        <input
+                          pInputText
+                          class="w-full"
+                          placeholder="Parameter name (optional — for panels)"
+                          [ngModel]="receiveDraft(item.visitServiceId).parameterName"
+                          (ngModelChange)="patchReceiveDraft(item.visitServiceId, { parameterName: $event })"
+                        />
+                        <textarea
+                          pTextarea
+                          rows="2"
+                          class="w-full"
+                          [ngModel]="receiveDraft(item.visitServiceId).resultText"
+                          (ngModelChange)="patchReceiveDraft(item.visitServiceId, { resultText: $event })"
+                          placeholder="Result / narrative / semen JSON text"
+                        ></textarea>
+                        <div class="grid grid-cols-2 gap-1.5">
+                          <input
+                            pInputText
+                            placeholder="Units"
+                            [ngModel]="receiveDraft(item.visitServiceId).units"
+                            (ngModelChange)="patchReceiveDraft(item.visitServiceId, { units: $event })"
+                          />
+                          <input
+                            pInputText
+                            placeholder="Reference"
+                            [ngModel]="receiveDraft(item.visitServiceId).referenceRange"
+                            (ngModelChange)="patchReceiveDraft(item.visitServiceId, { referenceRange: $event })"
+                          />
+                        </div>
+                        <span class="text-[10px] text-[#64748b]"
+                          >Standard: value + units/ref. Narrative/Semen: paste full report text in Result.</span
+                        >
+                      </div>
                     }
                   </div>
                 </li>

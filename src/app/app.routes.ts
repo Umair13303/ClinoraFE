@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 
+import { authGuard, stationGuard } from './auth/station-guard';
 import { Dashboard } from './dashboard/dashboard';
 import { FrontDesk } from './front-desk/front-desk';
 import { Login } from './login/login';
@@ -19,19 +20,20 @@ export const routes: Routes = [
   {
     path: '',
     component: WorkspaceShell,
+    canActivate: [authGuard],
+    canActivateChild: [stationGuard],
     children: [
       { path: 'dashboard', component: Dashboard },
-      { path: 'desk', component: FrontDesk },
-      { path: 'collection', component: CollectionStation },
-      { path: 'barcode', component: BarcodeStation },
-      { path: 'results', component: ResultsStation },
-      { path: 'finalize', component: FinalizeStation },
-      { path: 'reports', component: ReportCollectionStation },
-      { path: 'radiology', component: RadiologyStation },
-      { path: 'outside-lab', component: OutsideLabStation },
-      { path: 'masters', component: Masters },
+      { path: 'desk', component: FrontDesk, data: { station: 'FrontDesk' } },
+      { path: 'collection', component: CollectionStation, data: { station: 'Phlebotomy' } },
+      { path: 'barcode', component: BarcodeStation, data: { station: 'Phlebotomy' } },
+      { path: 'results', component: ResultsStation, data: { station: 'Lab' } },
+      { path: 'finalize', component: FinalizeStation, data: { station: 'Doctor' } },
+      { path: 'reports', component: ReportCollectionStation, data: { station: 'FrontDesk' } },
+      { path: 'radiology', component: RadiologyStation, data: { station: 'Radiology' } },
+      { path: 'outside-lab', component: OutsideLabStation, data: { station: 'Lab' } },
+      { path: 'masters', component: Masters, data: { station: 'Admin' } },
     ],
   },
   { path: '**', redirectTo: 'login' },
 ];
-

@@ -50,7 +50,7 @@
     <div class="station-banner">
       <div>
         <strong>{{ visitGroups().length }} visit{{ visitGroups().length === 1 ? '' : 's' }} in finalize queue</strong>
-        <span>Select lines to sign. Finalized lines can be amended if needed.</span>
+        <span>Select lines to sign. Critical results require acknowledgment. Finalized lines can be amended.</span>
       </div>
       <p-tag
         [value]="visitGroups().length ? 'Review' : 'Clear'"
@@ -83,7 +83,7 @@
             <div class="station-card__body">
               <ul class="m-0 list-none p-0">
                 @for (line of group.lines; track line.visitServiceId) {
-                  <li class="station-row">
+                  <li class="station-row !items-start">
                     <p-checkbox
                       [binary]="true"
                       [ngModel]="!!selected()[line.visitServiceId]"
@@ -94,6 +94,7 @@
                     <label [for]="'f-' + line.visitServiceId" class="m-0 min-w-0 flex-1 cursor-pointer">
                       <div class="mb-1 flex flex-wrap items-center gap-1.5">
                         <strong>{{ line.serviceName }}</strong>
+                        <p-tag [value]="profileOf(line)" severity="secondary" />
                         <p-tag [value]="line.status" severity="secondary" />
                         @if (line.isCritical) {
                           <p-tag value="Critical" severity="danger" />
@@ -101,7 +102,7 @@
                           <p-tag value="Abnormal" severity="warn" />
                         }
                       </div>
-                      <p class="m-0 text-[11px] leading-snug text-[#475569]">{{ line.existingResultText || '—' }}</p>
+                      <div class="fin-preview" [innerHTML]="previewHtml(line)"></div>
                     </label>
                     @if (line.status === 'Finalized') {
                       <p-button
@@ -110,19 +111,29 @@
                         size="small"
                         severity="secondary"
                         [outlined]="true"
-                        (onClick)="amend(line)"
+                        (onClick)="openAmend(line)"
                       />
                     }
                   </li>
                 }
               </ul>
+              @if (hasCriticalPending(group.visitId)) {
+                <label class="mt-2 flex items-center gap-2 text-[12px] font-semibold text-[#b91c1c]">
+                  <p-checkbox
+                    [binary]="true"
+                    [ngModel]="!!criticalAck()[group.visitId]"
+                    (ngModelChange)="setCriticalAck(group.visitId, $event)"
+                  />
+                  Critical results reviewed — proceed to finalize
+                </label>
+              }
               <div class="station-actions">
                 <p-button
                   icon="pi pi-check-circle"
                   label="Finalize + print report"
                   size="small"
                   [loading]="busyVisit() === group.visitId"
-                  [disabled]="pendingLines(group.visitId).length === 0"
+                  [disabled]="!canFinalize(group.visitId)"
                   (onClick)="finalize(group.visitId)"
                 />
               </div>
@@ -133,3 +144,57 @@
     }
   </main>
 </div>
+
+<p-dialog
+  header="Amend result"
+  [modal]="true"
+  [visible]="amendOpen()"
+  (visibleChange)="onAmendVisible($event)"
+  [style]="{ width: 'min(640px, 96vw)' }"
+  [draggable]="false"
+>
+  @if (amendLine(); as line) {
+    <p class="mb-3 mt-0 text-[13px] text-[#475569]">
+      {{ line.visitNumber }} · {{ line.serviceName }}
+      @if (line.existingParameterName) {
+        · {{ line.existingParameterName }}
+      }
+    </p>
+
+    @if (profileOf(line) === 'Semen') {
+      <p-message
+        severity="info"
+        text="Semen worksheets should be amended in Result entry (full worksheet), then finalize again."
+        styleClass="mb-3 w-full"
+      />
+    } @else if (profileOf(line) === 'Narrative' || profileOf(line) === 'Radiology') {
+      <p-editor
+        class="clinora-editor clinora-editor--compact block mb-3"
+        [(ngModel)]="amendText"
+        [modules]="editorModules"
+        [style]="{ height: '240px' }"
+      />
+    } @else {
+      <textarea pTextarea rows="3" class="mb-2 w-full" [(ngModel)]="amendText" placeholder="Result"></textarea>
+      <div class="mb-3 grid grid-cols-2 gap-2">
+        <input pInputText placeholder="Units" [(ngModel)]="amendUnits" />
+        <input pInputText placeholder="Reference" [(ngModel)]="amendRange" />
+      </div>
+    }
+
+    @if (profileOf(line) !== 'Semen') {
+      <label class="mb-3 flex items-center gap-2 text-[12px] font-semibold">
+        <p-checkbox [binary]="true" [(ngModel)]="amendCritical" />
+        Critical
+      </label>
+      <div class="flex justify-end gap-2">
+        <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="closeAmend()" />
+        <p-button label="Save amendment" icon="pi pi-save" [loading]="amendBusy()" (onClick)="saveAmend()" />
+      </div>
+    } @else {
+      <div class="flex justify-end">
+        <p-button label="Close" severity="secondary" [outlined]="true" (onClick)="closeAmend()" />
+      </div>
+    }
+  }
+</p-dialog>

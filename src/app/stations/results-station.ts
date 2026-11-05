@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { Button } from 'primeng/button';
 import { Card } from 'primeng/card';
 import { Checkbox } from 'primeng/checkbox';
@@ -13,7 +14,7 @@ import { Select } from 'primeng/select';
 import { Tag } from 'primeng/tag';
 import { Textarea } from 'primeng/textarea';
 
-import { ClinicApi, RadiologyTemplate, ResultWorkItem } from '../clinic-api';
+import { ClinicApi, ExistingResult, RadiologyTemplate, ResultWorkItem } from '../clinic-api';
 import { plainToEditorHtml, radiologyEditorModules, stripHtml } from '../rich-text';
 import {
   emptySemenWorksheet,
@@ -26,6 +27,16 @@ import { readPref, writePref } from './station-prefs';
 
 type ParamOpt = { id: number; name: string; unit: string | null; refLow: number | null; refHigh: number | null };
 type Draft = { text: string; units: string; range: string; critical: boolean; paramId: number | null };
+type ParamRow = {
+  paramId: number;
+  name: string;
+  text: string;
+  units: string;
+  range: string;
+  critical: boolean;
+  refLow: number | null;
+  refHigh: number | null;
+};
 
 @Component({
   selector: 'app-results-station',
@@ -51,6 +62,7 @@ export class ResultsStation implements OnInit {
 
   protected readonly items = signal<ResultWorkItem[]>([]);
   protected readonly drafts = signal<Record<number, Draft>>({});
+  protected readonly paramRows = signal<Record<number, ParamRow[]>>({});
   protected readonly semenDrafts = signal<Record<number, SemenWorksheet>>({});
   protected readonly narrativeTemplates = signal<RadiologyTemplate[]>([]);
   protected readonly selectedNarrativeTemplate = signal<Record<number, number | null>>({});
@@ -116,7 +128,7 @@ export class ResultsStation implements OnInit {
               paramId: null,
             };
             if (item.serviceId) {
-              this.loadParams(item.serviceId);
+              this.loadParams(item);
             }
           }
         }
@@ -136,17 +148,53 @@ export class ResultsStation implements OnInit {
     );
   }
 
-  private loadParams(serviceId: number): void {
-    if (this.params()[serviceId]) {
+  private loadParams(item: ResultWorkItem): void {
+    const apply = (list: ParamOpt[]) => {
+      this.params.update((map) => ({ ...map, [item.serviceId]: list }));
+      if (list.length > 0) {
+        this.paramRows.update((map) => ({
+          ...map,
+          [item.visitServiceId]: this.buildParamRows(list, item.existingResults ?? []),
+        }));
+      }
+    };
+
+    const cached = this.params()[item.serviceId];
+    if (cached) {
+      apply(cached);
       return;
     }
-    this.api.resultParameters(serviceId).subscribe({
-      next: (list) => this.params.update((map) => ({ ...map, [serviceId]: list })),
+    this.api.resultParameters(item.serviceId).subscribe({
+      next: (list) => apply(list),
+    });
+  }
+
+  private buildParamRows(catalog: ParamOpt[], existing: ExistingResult[]): ParamRow[] {
+    return catalog.map((p) => {
+      const match = existing.find(
+        (e) => (e.parameterName ?? '').localeCompare(p.name, undefined, { sensitivity: 'accent' }) === 0,
+      );
+      return {
+        paramId: p.id,
+        name: p.name,
+        text: match?.resultText ?? '',
+        units: match?.units ?? p.unit ?? '',
+        range:
+          match?.referenceRange ??
+          (p.refLow != null || p.refHigh != null ? `${p.refLow ?? ''}–${p.refHigh ?? ''}` : ''),
+        critical: !!match?.isCritical,
+        refLow: p.refLow,
+        refHigh: p.refHigh,
+      };
     });
   }
 
   protected draft(id: number): Draft {
     return this.drafts()[id] ?? { text: '', units: '', range: '', critical: false, paramId: null };
+  }
+
+  protected rows(id: number): ParamRow[] {
+    return this.paramRows()[id] ?? [];
   }
 
   protected semen(id: number): SemenWorksheet {
@@ -157,21 +205,17 @@ export class ResultsStation implements OnInit {
     this.drafts.update((map) => ({ ...map, [id]: { ...this.draft(id), ...patch } }));
   }
 
-  protected patchSemen(id: number, patch: Partial<SemenWorksheet>): void {
-    this.semenDrafts.update((map) => ({ ...map, [id]: { ...this.semen(id), ...patch } }));
+  protected patchRow(visitServiceId: number, paramId: number, patch: Partial<ParamRow>): void {
+    this.paramRows.update((map) => ({
+      ...map,
+      [visitServiceId]: (map[visitServiceId] ?? []).map((row) =>
+        row.paramId === paramId ? { ...row, ...patch } : row,
+      ),
+    }));
   }
 
-  protected onParam(item: ResultWorkItem, paramId: number | null): void {
-    const list = this.params()[item.serviceId] ?? [];
-    const param = list.find((p) => p.id === paramId);
-    this.patch(item.visitServiceId, {
-      paramId,
-      units: param?.unit ?? this.draft(item.visitServiceId).units,
-      range:
-        param && (param.refLow != null || param.refHigh != null)
-          ? `${param.refLow ?? ''}–${param.refHigh ?? ''}`
-          : this.draft(item.visitServiceId).range,
-    });
+  protected patchSemen(id: number, patch: Partial<SemenWorksheet>): void {
+    this.semenDrafts.update((map) => ({ ...map, [id]: { ...this.semen(id), ...patch } }));
   }
 
   protected onNarrativeTemplate(item: ResultWorkItem, templateId: number | null): void {
@@ -207,12 +251,46 @@ export class ResultsStation implements OnInit {
   }
 
   private saveStandard(item: ResultWorkItem): void {
+    const rows = this.rows(item.visitServiceId);
+    if (rows.length > 0) {
+      const filled = rows.filter((r) => r.text.trim());
+      if (filled.length === 0) {
+        this.error.set(`Enter at least one parameter for ${item.serviceName}.`);
+        return;
+      }
+      this.savingId.set(item.visitServiceId);
+      this.error.set('');
+      forkJoin(
+        filled.map((row) =>
+          this.api.saveResult({
+            visitServiceId: item.visitServiceId,
+            resultText: row.text.trim(),
+            units: row.units.trim() || null,
+            referenceRange: row.range.trim() || null,
+            enteredByName: this.enteredBy || null,
+            source: 'InHouse',
+            parameterName: row.name,
+            refLow: row.refLow,
+            refHigh: row.refHigh,
+            isCritical: row.critical,
+          }),
+        ),
+      ).subscribe({
+        next: (resList) => {
+          const anyCritical = resList.some((r) => r.isCritical);
+          const anyAbnormal = resList.some((r) => r.isAbnormal);
+          this.onSaved(item, { isCritical: anyCritical, isAbnormal: anyAbnormal });
+        },
+        error: (err) => this.onSaveError(err),
+      });
+      return;
+    }
+
     const d = this.draft(item.visitServiceId);
     if (!d.text.trim()) {
       this.error.set(`Enter result for ${item.serviceName}.`);
       return;
     }
-    const param = (this.params()[item.serviceId] ?? []).find((p) => p.id === d.paramId);
     this.savingId.set(item.visitServiceId);
     this.error.set('');
     this.api
@@ -223,9 +301,7 @@ export class ResultsStation implements OnInit {
         referenceRange: d.range.trim() || null,
         enteredByName: this.enteredBy || null,
         source: 'InHouse',
-        parameterName: param?.name ?? null,
-        refLow: param?.refLow ?? null,
-        refHigh: param?.refHigh ?? null,
+        parameterName: null,
         isCritical: d.critical,
       })
       .subscribe({

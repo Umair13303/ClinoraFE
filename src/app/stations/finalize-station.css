@@ -1,0 +1,22 @@
+.fin-preview {
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.fin-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.fin-preview-table th,
+.fin-preview-table td {
+  border: 1px solid #e2e8f0;
+  padding: 0.2rem 0.35rem;
+  text-align: left;
+}
+
+.fin-meta {
+  color: #64748b;
+}

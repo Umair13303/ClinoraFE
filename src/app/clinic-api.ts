@@ -189,6 +189,15 @@ export type SampleBarcode = {
   tests: string[];
 };
 
+export type ExistingResult = {
+  parameterName?: string | null;
+  resultText?: string | null;
+  units?: string | null;
+  referenceRange?: string | null;
+  isAbnormal?: boolean;
+  isCritical?: boolean;
+};
+
 export type ResultWorkItem = {
   visitServiceId: number;
   visitId: number;
@@ -205,6 +214,7 @@ export type ResultWorkItem = {
   existingUnits?: string | null;
   existingReferenceRange?: string | null;
   existingParameterName?: string | null;
+  existingResults?: ExistingResult[];
   isAbnormal?: boolean;
   isCritical?: boolean;
 };
@@ -249,6 +259,7 @@ export type ReportDto = {
   printCount: number;
   lines: Array<{
     serviceName: string;
+    parameterName?: string | null;
     resultText: string | null;
     units: string | null;
     referenceRange: string | null;
@@ -598,6 +609,7 @@ export class ClinicApi {
         resultText: string;
         units?: string | null;
         referenceRange?: string | null;
+        parameterName?: string | null;
       }>;
     },
   ) {

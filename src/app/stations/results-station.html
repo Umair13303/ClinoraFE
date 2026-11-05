@@ -219,56 +219,88 @@
                   />
                 </div>
               } @else {
-                @if ((params()[item.serviceId] || []).length > 0) {
-                  <p-select
-                    [options]="params()[item.serviceId]"
-                    optionLabel="name"
-                    optionValue="id"
-                    [ngModel]="draft(item.visitServiceId).paramId"
-                    (ngModelChange)="onParam(item, $event)"
-                    placeholder="Parameter (optional)"
-                    [showClear]="true"
-                    size="small"
-                    styleClass="w-full sm:w-72"
-                  />
-                }
-                <textarea
-                  pTextarea
-                  rows="2"
-                  class="w-full"
-                  [ngModel]="draft(item.visitServiceId).text"
-                  (ngModelChange)="patch(item.visitServiceId, { text: $event })"
-                  placeholder="Result value / findings"
-                ></textarea>
-                <div class="grid grid-cols-[1fr_1fr_auto_auto] items-end gap-2 max-[900px]:grid-cols-1">
-                  <input
-                    pInputText
-                    placeholder="Units"
-                    [ngModel]="draft(item.visitServiceId).units"
-                    (ngModelChange)="patch(item.visitServiceId, { units: $event })"
-                  />
-                  <input
-                    pInputText
-                    placeholder="Reference"
-                    [ngModel]="draft(item.visitServiceId).range"
-                    (ngModelChange)="patch(item.visitServiceId, { range: $event })"
-                  />
-                  <label class="flex items-center gap-2 whitespace-nowrap text-[12px] font-semibold">
-                    <p-checkbox
-                      [binary]="true"
-                      [ngModel]="draft(item.visitServiceId).critical"
-                      (ngModelChange)="patch(item.visitServiceId, { critical: $event })"
+                @if (rows(item.visitServiceId).length > 0) {
+                  <div class="grid gap-2">
+                    @for (row of rows(item.visitServiceId); track row.paramId) {
+                      <div class="grid grid-cols-[7rem_1fr_5rem_7rem_auto] items-center gap-2 max-[900px]:grid-cols-1">
+                        <strong class="text-[12px]">{{ row.name }}</strong>
+                        <input
+                          pInputText
+                          [placeholder]="row.name + ' value'"
+                          [ngModel]="row.text"
+                          (ngModelChange)="patchRow(item.visitServiceId, row.paramId, { text: $event })"
+                        />
+                        <input
+                          pInputText
+                          placeholder="Units"
+                          [ngModel]="row.units"
+                          (ngModelChange)="patchRow(item.visitServiceId, row.paramId, { units: $event })"
+                        />
+                        <input
+                          pInputText
+                          placeholder="Reference"
+                          [ngModel]="row.range"
+                          (ngModelChange)="patchRow(item.visitServiceId, row.paramId, { range: $event })"
+                        />
+                        <label class="flex items-center gap-2 whitespace-nowrap text-[12px] font-semibold">
+                          <p-checkbox
+                            [binary]="true"
+                            [ngModel]="row.critical"
+                            (ngModelChange)="patchRow(item.visitServiceId, row.paramId, { critical: $event })"
+                          />
+                          Crit
+                        </label>
+                      </div>
+                    }
+                  </div>
+                  <div class="station-actions !mt-1">
+                    <p-button
+                      icon="pi pi-save"
+                      label="Save all parameters"
+                      size="small"
+                      [loading]="savingId() === item.visitServiceId"
+                      (onClick)="save(item)"
                     />
-                    Critical
-                  </label>
-                  <p-button
-                    icon="pi pi-save"
-                    label="Save"
-                    size="small"
-                    [loading]="savingId() === item.visitServiceId"
-                    (onClick)="save(item)"
-                  />
-                </div>
+                  </div>
+                } @else {
+                  <textarea
+                    pTextarea
+                    rows="2"
+                    class="w-full"
+                    [ngModel]="draft(item.visitServiceId).text"
+                    (ngModelChange)="patch(item.visitServiceId, { text: $event })"
+                    placeholder="Result value / findings"
+                  ></textarea>
+                  <div class="grid grid-cols-[1fr_1fr_auto_auto] items-end gap-2 max-[900px]:grid-cols-1">
+                    <input
+                      pInputText
+                      placeholder="Units"
+                      [ngModel]="draft(item.visitServiceId).units"
+                      (ngModelChange)="patch(item.visitServiceId, { units: $event })"
+                    />
+                    <input
+                      pInputText
+                      placeholder="Reference"
+                      [ngModel]="draft(item.visitServiceId).range"
+                      (ngModelChange)="patch(item.visitServiceId, { range: $event })"
+                    />
+                    <label class="flex items-center gap-2 whitespace-nowrap text-[12px] font-semibold">
+                      <p-checkbox
+                        [binary]="true"
+                        [ngModel]="draft(item.visitServiceId).critical"
+                        (ngModelChange)="patch(item.visitServiceId, { critical: $event })"
+                      />
+                      Critical
+                    </label>
+                    <p-button
+                      icon="pi pi-save"
+                      label="Save"
+                      size="small"
+                      [loading]="savingId() === item.visitServiceId"
+                      (onClick)="save(item)"
+                    />
+                  </div>
+                }
               }
             </div>
           </p-card>

@@ -319,6 +319,7 @@ export function printFinalReport(report: {
   finalizedAt: string;
   lines: Array<{
     serviceName: string;
+    parameterName?: string | null;
     resultText: string | null;
     units: string | null;
     referenceRange: string | null;
@@ -343,8 +344,11 @@ export function printFinalReport(report: {
       ]
         .filter(Boolean)
         .join(' · ');
+      const testLabel = line.parameterName
+        ? `${line.serviceName} — ${line.parameterName}`
+        : line.serviceName;
       return `<tr>
-        <td>${escapeHtml(line.serviceName)}${flags ? ` <span class="flag">${escapeHtml(flags)}</span>` : ''}</td>
+        <td>${escapeHtml(testLabel)}${flags ? ` <span class="flag">${escapeHtml(flags)}</span>` : ''}</td>
         <td class="${line.isAbnormal || line.isCritical ? 'flag' : ''}">${formatResultCell(line.resultText)}</td>
         <td>${escapeHtml(line.units || '—')}</td>
         <td>${escapeHtml(line.referenceRange || '—')}</td>

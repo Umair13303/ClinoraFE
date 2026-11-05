@@ -9,6 +9,7 @@ import { ProgressBar } from 'primeng/progressbar';
 import { Skeleton } from 'primeng/skeleton';
 import { Tag } from 'primeng/tag';
 
+import { roleAllowsStation } from '../auth/station-guard';
 import { readAuth } from '../branch-context';
 import { ClinicApi, WorklistSummary } from '../clinic-api';
 
@@ -56,7 +57,8 @@ export class Dashboard implements OnInit {
     if (!s) {
       return [];
     }
-    return [
+    const roleId = readAuth()?.roleId;
+    const all: Array<MetricCard & { station: string }> = [
       {
         key: 'collection',
         label: 'Awaiting collection',
@@ -65,6 +67,7 @@ export class Dashboard implements OnInit {
         route: '/collection',
         icon: 'pi pi-inbox',
         tone: 'teal',
+        station: 'Phlebotomy',
       },
       {
         key: 'inLab',
@@ -74,6 +77,7 @@ export class Dashboard implements OnInit {
         route: '/results',
         icon: 'pi pi-flask',
         tone: 'sky',
+        station: 'Lab',
       },
       {
         key: 'sentOut',
@@ -83,6 +87,7 @@ export class Dashboard implements OnInit {
         route: '/outside-lab',
         icon: 'pi pi-send',
         tone: 'amber',
+        station: 'Lab',
       },
       {
         key: 'finalize',
@@ -92,6 +97,7 @@ export class Dashboard implements OnInit {
         route: '/finalize',
         icon: 'pi pi-verified',
         tone: 'violet',
+        station: 'Doctor',
       },
       {
         key: 'radiology',
@@ -101,6 +107,17 @@ export class Dashboard implements OnInit {
         route: '/radiology',
         icon: 'pi pi-image',
         tone: 'slate',
+        station: 'Radiology',
+      },
+      {
+        key: 'reports',
+        label: 'Report collection',
+        hint: 'Print / handover desk',
+        value: 0,
+        route: '/reports',
+        icon: 'pi pi-print',
+        tone: 'teal',
+        station: 'FrontDesk',
       },
       {
         key: 'overdue',
@@ -111,8 +128,12 @@ export class Dashboard implements OnInit {
         icon: 'pi pi-exclamation-triangle',
         tone: 'rose',
         alert: s.outsideOverdue > 0,
+        station: 'Lab',
       },
     ];
+    return all
+      .filter((m) => roleAllowsStation(m.station, roleId))
+      .map(({ station: _station, ...card }) => card);
   });
 
   protected readonly totalOpen = computed(() =>

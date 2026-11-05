@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Select } from 'primeng/select';
 
+import { cacheClinicSettings } from '../auth/station-guard';
 import { BranchContext, readAuth } from '../branch-context';
 import { BranchDto, ClinicApi, ClinicSettings } from '../clinic-api';
 import { cacheClinicLetterhead } from '../print/print';
@@ -75,6 +76,7 @@ export class WorkspaceShell implements OnInit {
     this.api.clinicSettings().subscribe({
       next: (settings) => {
         this.settings.set(settings);
+        cacheClinicSettings(settings);
         cacheClinicLetterhead(settings);
       },
     });
@@ -93,6 +95,7 @@ export class WorkspaceShell implements OnInit {
   protected signOut(): void {
     sessionStorage.removeItem('clinora.auth');
     sessionStorage.removeItem('clinora.branchId');
+    sessionStorage.removeItem('clinora.settings');
     void this.router.navigateByUrl('/login');
   }
 }
