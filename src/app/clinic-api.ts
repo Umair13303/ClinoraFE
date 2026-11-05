@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 
 import { API_BASE_URL } from './app.config';
 
-export type ReportProfile = 'Standard' | 'Narrative' | 'Semen' | 'Ihc' | 'Radiology';
+export type ReportProfile = 'Standard' | 'Narrative' | 'Semen' | 'Ihc' | 'Radiology' | 'PhysicalExam';
 
 export type ClinicService = {
   id: number;
@@ -66,6 +66,7 @@ export type VisitSummary = {
   patientName: string;
   referredBy: string | null;
   panelName: string | null;
+  purpose?: string;
   net: number;
   createdAt: string;
 };
@@ -89,6 +90,8 @@ export type CreateVisitRequest = {
   referredBy?: string | null;
   slipNo?: string | null;
   notes?: string | null;
+  purpose?: string | null;
+  destinationCountry?: string | null;
   services: Array<{
     serviceId: number;
     discount: number;
@@ -97,6 +100,62 @@ export type CreateVisitRequest = {
     staffName?: string | null;
     readyBy?: string | null;
   }>;
+};
+
+export type CertificatePackage = {
+  code: string;
+  name: string;
+  services: ClinicService[];
+};
+
+export type MedicalCertificateWorkItem = {
+  visitId: number;
+  visitNumber: string;
+  patientName: string;
+  phone: string;
+  age: number;
+  gender: string;
+  passportNo: string | null;
+  createdAt: string;
+  fitness: string;
+  destinationCountry: string | null;
+  issuedAt: string | null;
+  totalLines: number;
+  completedLines: number;
+  readyToIssue: boolean;
+};
+
+export type MedicalCertificateLine = {
+  visitServiceId: number;
+  serviceId: number;
+  serviceName: string;
+  pathway: string;
+  reportProfile: string;
+  status: string;
+  complete: boolean;
+  resultPreview: string | null;
+};
+
+export type MedicalCertificateDetail = {
+  visitId: number;
+  visitNumber: string;
+  patientName: string;
+  phone: string;
+  age: number;
+  gender: string;
+  passportNo: string | null;
+  cnic: string | null;
+  photoUrl?: string | null;
+  purpose: string;
+  fitness: string;
+  destinationCountry: string | null;
+  remarks: string | null;
+  issuedByName: string | null;
+  issuedAt: string | null;
+  readyToIssue: boolean;
+  physicalExamJson: string | null;
+  physicalVisitServiceId: number | null;
+  lines: MedicalCertificateLine[];
 };
 
 export type VisitReceipt = {
@@ -127,7 +186,49 @@ export type WorklistSummary = {
   sentOut: number;
   awaitingFinalize: number;
   radiology: number;
+  vaccination?: number;
   outsideOverdue: number;
+};
+
+export type VaccinationRecord = {
+  id: number;
+  visitServiceId: number;
+  batchNo: string | null;
+  lotNo: string | null;
+  expiryDate: string | null;
+  doseNumber: string | null;
+  site: string | null;
+  route: string | null;
+  administeredAt: string;
+  administeredByName: string | null;
+  nextDueAt: string | null;
+  notes: string | null;
+};
+
+export type VaccinationWorkItem = {
+  visitServiceId: number;
+  visitId: number;
+  serviceId: number;
+  visitNumber: string;
+  patientName: string;
+  phone: string;
+  age: number;
+  gender: string;
+  serviceName: string;
+  status: string;
+  urgent: boolean;
+  createdAt: string;
+  record?: VaccinationRecord | null;
+};
+
+export type VaccinationCard = {
+  visitNumber: string;
+  patientName: string;
+  phone: string;
+  age: number;
+  gender: string;
+  vaccineName: string;
+  record: VaccinationRecord;
 };
 
 export type SampleSetup = {
@@ -501,6 +602,56 @@ export class ClinicApi {
 
   radiologyWorklist() {
     return this.http.get<RadiologyWorkItem[]>(`${this.baseUrl}/api/worklist/radiology`);
+  }
+
+  vaccinationWorklist() {
+    return this.http.get<VaccinationWorkItem[]>(`${this.baseUrl}/api/vaccination/worklist`);
+  }
+
+  administerVaccination(body: {
+    visitServiceId: number;
+    batchNo?: string | null;
+    lotNo?: string | null;
+    expiryDate?: string | null;
+    doseNumber?: string | null;
+    site?: string | null;
+    route?: string | null;
+    administeredAt?: string | null;
+    administeredByName?: string | null;
+    nextDueAt?: string | null;
+    notes?: string | null;
+  }) {
+    return this.http.post<VaccinationWorkItem>(`${this.baseUrl}/api/vaccination/administer`, body);
+  }
+
+  vaccinationCard(visitServiceId: number) {
+    return this.http.get<VaccinationCard>(`${this.baseUrl}/api/vaccination/${visitServiceId}/card`);
+  }
+
+  certificatePackage() {
+    return this.http.get<CertificatePackage>(`${this.baseUrl}/api/medical-certificate/package`);
+  }
+
+  certificateWorklist() {
+    return this.http.get<MedicalCertificateWorkItem[]>(`${this.baseUrl}/api/medical-certificate/worklist`);
+  }
+
+  certificateDetail(visitId: number) {
+    return this.http.get<MedicalCertificateDetail>(`${this.baseUrl}/api/medical-certificate/${visitId}`);
+  }
+
+  savePhysicalExam(body: { visitId: number; examJson: string; examinedByName?: string | null }) {
+    return this.http.post<MedicalCertificateDetail>(`${this.baseUrl}/api/medical-certificate/physical`, body);
+  }
+
+  issueMedicalCertificate(body: {
+    visitId: number;
+    fitness: string;
+    destinationCountry?: string | null;
+    remarks?: string | null;
+    issuedByName?: string | null;
+  }) {
+    return this.http.post<MedicalCertificateDetail>(`${this.baseUrl}/api/medical-certificate/issue`, body);
   }
 
   resultParameters(serviceId: number) {

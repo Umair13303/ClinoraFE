@@ -6,6 +6,7 @@ import { FrontDesk } from './front-desk/front-desk';
 import { Login } from './login/login';
 import { Masters } from './masters/masters';
 import { BarcodeStation } from './stations/barcode-station';
+import { CertificateStation } from './stations/certificate-station';
 import { CollectionStation } from './stations/collection-station';
 import { FinalizeStation } from './stations/finalize-station';
 import { OutsideLabStation } from './stations/outside-lab-station';
@@ -13,6 +14,7 @@ import { RadiologyStation } from './stations/radiology-station';
 import { ReceivingStation } from './stations/receiving-station';
 import { ReportCollectionStation } from './stations/report-collection-station';
 import { ResultsStation } from './stations/results-station';
+import { VaccinationStation } from './stations/vaccination-station';
 import { WorkspaceShell } from './workspace-shell/workspace-shell';
 
 export const routes: Routes = [
@@ -33,6 +35,8 @@ export const routes: Routes = [
       { path: 'finalize', component: FinalizeStation, data: { station: 'Doctor' } },
       { path: 'reports', component: ReportCollectionStation, data: { station: 'FrontDesk' } },
       { path: 'radiology', component: RadiologyStation, data: { station: 'Radiology' } },
+      { path: 'vaccination', component: VaccinationStation, data: { station: 'Vaccination' } },
+      { path: 'certificate', component: CertificateStation, data: { station: 'MedicalCertificate' } },
       { path: 'outside-lab', component: OutsideLabStation, data: { station: 'Lab' } },
       { path: 'masters', component: Masters, data: { station: 'Admin' } },
     ],

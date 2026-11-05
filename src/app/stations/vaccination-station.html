@@ -1,0 +1,219 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Vaccination</strong>
+      <span>Administer booked vaccines · record batch / lot / site · print card</span>
+    </div>
+    <div class="station-toolbar">
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-search" />
+        <input
+          pInputText
+          [ngModel]="filter()"
+          (ngModelChange)="filter.set($event)"
+          placeholder="Visit / patient / vaccine"
+        />
+      </p-iconfield>
+      <input
+        pInputText
+        class="w-[180px]"
+        placeholder="Administered by"
+        [ngModel]="administeredBy"
+        (ngModelChange)="onBy($event)"
+      />
+      <p-button
+        icon="pi pi-refresh"
+        label="Refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        (onClick)="reload()"
+      />
+    </div>
+  </header>
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
+    }
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" styleClass="mb-3 w-full" />
+    }
+
+    <div class="mb-3 grid gap-3 lg:grid-cols-2">
+      <div class="station-banner !mb-0">
+        <div>
+          <strong>{{ pending().length }} awaiting administration</strong>
+          <span>Booked at front desk — record dose details here.</span>
+        </div>
+        <p-tag
+          [value]="pending().length ? 'Queue' : 'Clear'"
+          [severity]="pending().length ? 'warn' : 'secondary'"
+        />
+      </div>
+      <div class="station-banner !mb-0">
+        <div>
+          <strong>{{ doneToday().length }} administered today</strong>
+          <span>Reprint vaccination cards anytime.</span>
+        </div>
+        <p-tag [value]="doneToday().length ? 'Done' : 'None'" severity="success" />
+      </div>
+    </div>
+
+    <p-card styleClass="station-card mb-3">
+      <div class="station-card__head">
+        <div>
+          <h2 class="station-card__title">Pending</h2>
+          <p class="station-card__meta m-0 mt-0.5">AwaitingAdministration</p>
+        </div>
+        <p-tag [value]="pending().length + ''" severity="warn" />
+      </div>
+      <div class="station-card__body">
+        @if (pending().length === 0) {
+          <div class="station-empty !min-h-[120px] border-0 bg-transparent p-2">
+            <i class="pi pi-shield"></i>
+            <div>
+              <strong>No vaccines waiting</strong>
+              <p>Book a Vaccination pathway service at front desk.</p>
+            </div>
+          </div>
+        } @else {
+          <ul class="m-0 list-none space-y-3 p-0">
+            @for (item of pending(); track item.visitServiceId) {
+              <li class="rounded-lg border border-[#e2e8f0] p-3">
+                <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <strong class="block text-[14px]">{{ item.serviceName }}</strong>
+                    <span class="text-[12px] text-[#64748b]">
+                      {{ item.visitNumber }} · {{ item.patientName }} · {{ item.age }} yrs ·
+                      {{ item.gender }} · {{ item.phone }}
+                    </span>
+                  </div>
+                  @if (item.urgent) {
+                    <p-tag value="Urgent" severity="danger" />
+                  }
+                </div>
+                <div class="mb-2 grid grid-cols-2 gap-2 max-[900px]:grid-cols-1 md:grid-cols-4">
+                  <input
+                    pInputText
+                    placeholder="Batch no"
+                    [ngModel]="draft(item.visitServiceId).batchNo"
+                    (ngModelChange)="patch(item.visitServiceId, { batchNo: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Lot no"
+                    [ngModel]="draft(item.visitServiceId).lotNo"
+                    (ngModelChange)="patch(item.visitServiceId, { lotNo: $event })"
+                  />
+                  <input
+                    pInputText
+                    type="date"
+                    placeholder="Expiry"
+                    [ngModel]="draft(item.visitServiceId).expiryDate"
+                    (ngModelChange)="patch(item.visitServiceId, { expiryDate: $event })"
+                  />
+                  <input
+                    pInputText
+                    placeholder="Dose # (e.g. 1st / booster)"
+                    [ngModel]="draft(item.visitServiceId).doseNumber"
+                    (ngModelChange)="patch(item.visitServiceId, { doseNumber: $event })"
+                  />
+                  <p-select
+                    [options]="siteOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Site"
+                    [showClear]="true"
+                    class="w-full"
+                    [ngModel]="draft(item.visitServiceId).site"
+                    (ngModelChange)="patch(item.visitServiceId, { site: $event ?? '' })"
+                  />
+                  <p-select
+                    [options]="routeOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Route"
+                    class="w-full"
+                    [ngModel]="draft(item.visitServiceId).route"
+                    (ngModelChange)="patch(item.visitServiceId, { route: $event ?? '' })"
+                  />
+                  <input
+                    pInputText
+                    type="date"
+                    placeholder="Next due"
+                    [ngModel]="draft(item.visitServiceId).nextDueAt"
+                    (ngModelChange)="patch(item.visitServiceId, { nextDueAt: $event })"
+                  />
+                </div>
+                <textarea
+                  pTextarea
+                  rows="2"
+                  class="mb-2 w-full"
+                  placeholder="Notes"
+                  [ngModel]="draft(item.visitServiceId).notes"
+                  (ngModelChange)="patch(item.visitServiceId, { notes: $event })"
+                ></textarea>
+                <div class="station-actions !mt-0">
+                  <p-button
+                    icon="pi pi-check"
+                    label="Mark administered"
+                    size="small"
+                    [loading]="savingId() === item.visitServiceId"
+                    (onClick)="save(item)"
+                  />
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </p-card>
+
+    <p-card styleClass="station-card">
+      <div class="station-card__head">
+        <div>
+          <h2 class="station-card__title">Administered today</h2>
+          <p class="station-card__meta m-0 mt-0.5">Print or re-check details</p>
+        </div>
+        <p-tag [value]="doneToday().length + ''" severity="success" />
+      </div>
+      <div class="station-card__body">
+        @if (doneToday().length === 0) {
+          <div class="station-empty !min-h-[100px] border-0 bg-transparent p-2">
+            <i class="pi pi-check-circle"></i>
+            <div>
+              <strong>Nothing administered yet today</strong>
+            </div>
+          </div>
+        } @else {
+          <ul class="m-0 list-none p-0">
+            @for (item of doneToday(); track item.visitServiceId) {
+              <li class="station-row items-center">
+                <div class="min-w-0 flex-1">
+                  <strong class="block truncate">{{ item.serviceName }}</strong>
+                  <span class="text-[12px] text-[#64748b]">
+                    {{ item.visitNumber }} · {{ item.patientName }}
+                    @if (item.record?.administeredAt) {
+                      · {{ item.record!.administeredAt | date: 'short' }}
+                    }
+                    @if (item.record?.administeredByName) {
+                      · {{ item.record!.administeredByName }}
+                    }
+                  </span>
+                </div>
+                <p-button
+                  icon="pi pi-print"
+                  label="Card"
+                  size="small"
+                  [outlined]="true"
+                  (onClick)="printCard(item)"
+                />
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </p-card>
+  </main>
+</div>

@@ -20,6 +20,8 @@ const ALL_NAV: NavItem[] = [
   { path: '/finalize', label: 'Finalize', station: 'Doctor' },
   { path: '/reports', label: 'Report collection', station: 'FrontDesk' },
   { path: '/radiology', label: 'Radiology', station: 'Radiology' },
+  { path: '/vaccination', label: 'Vaccination', station: 'Vaccination' },
+  { path: '/certificate', label: 'Medical certificate', station: 'MedicalCertificate' },
   { path: '/outside-lab', label: 'Outside lab', station: 'Lab' },
   { path: '/masters', label: 'Masters', station: 'Admin' },
 ];

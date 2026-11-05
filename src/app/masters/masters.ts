@@ -112,6 +112,7 @@ export class Masters implements OnInit {
     { label: 'Narrative (histo/cyto)', value: 'Narrative' },
     { label: 'Semen worksheet', value: 'Semen' },
     { label: 'IHC worksheet', value: 'Ihc' },
+    { label: 'Physical exam', value: 'PhysicalExam' },
   ];
 
   protected readonly editorModules = radiologyEditorModules;
@@ -120,6 +121,8 @@ export class Masters implements OnInit {
     { label: 'Laboratory', value: 'Laboratory' },
     { label: 'Radiology', value: 'Radiology' },
     { label: 'Consultation', value: 'Consultation' },
+    { label: 'Vaccination', value: 'Vaccination' },
+    { label: 'Physical', value: 'Physical' },
   ];
 
   protected readonly pathwayFilterOptions: Array<{ label: string; value: string | null }> = [
@@ -127,6 +130,8 @@ export class Masters implements OnInit {
     { label: 'Laboratory', value: 'Laboratory' },
     { label: 'Radiology', value: 'Radiology' },
     { label: 'Consultation', value: 'Consultation' },
+    { label: 'Vaccination', value: 'Vaccination' },
+    { label: 'Physical', value: 'Physical' },
   ];
 
   protected readonly lookupKinds: Array<{ label: string; value: LookupKind; icon: string }> = [
@@ -163,6 +168,7 @@ export class Masters implements OnInit {
       lab: list.filter((s) => s.pathway === 'Laboratory').length,
       radiology: list.filter((s) => s.pathway === 'Radiology').length,
       consultation: list.filter((s) => s.pathway === 'Consultation').length,
+      vaccination: list.filter((s) => s.pathway === 'Vaccination').length,
       templates: this.templates().length,
       narrativeTemplates: this.narrativeTemplates().length,
       semen: list.filter((s) => s.reportProfile === 'Semen').length,
@@ -299,12 +305,21 @@ export class Masters implements OnInit {
       return;
     }
     this.editing.pathway = pathway;
-    if (!this.editing.category || this.editing.category === 'Laboratory' || this.editing.category === 'Radiology' || this.editing.category === 'Consultation') {
+    if (
+      !this.editing.category ||
+      this.editing.category === 'Laboratory' ||
+      this.editing.category === 'Radiology' ||
+      this.editing.category === 'Consultation' ||
+      this.editing.category === 'Vaccination' ||
+      this.editing.category === 'Physical'
+    ) {
       this.editing.category = pathway;
     }
     if (pathway === 'Radiology') {
       this.editing.reportProfile = 'Radiology';
-    } else if (pathway === 'Consultation') {
+    } else if (pathway === 'Physical') {
+      this.editing.reportProfile = 'PhysicalExam';
+    } else if (pathway === 'Consultation' || pathway === 'Vaccination') {
       this.editing.reportProfile = 'Standard';
     } else if (!this.editing.reportProfile || this.editing.reportProfile === 'Radiology') {
       this.editing.reportProfile = 'Standard';
@@ -319,6 +334,8 @@ export class Masters implements OnInit {
         return 'info';
       case 'Ihc':
         return 'contrast';
+      case 'PhysicalExam':
+        return 'warn';
       case 'Radiology':
         return 'secondary';
       default:
@@ -463,7 +480,7 @@ export class Masters implements OnInit {
     return this.setup()?.outsideLabs ?? [];
   }
 
-  protected pathwaySeverity(pathway: string): 'success' | 'info' | 'warn' | 'secondary' {
+  protected pathwaySeverity(pathway: string): 'success' | 'info' | 'warn' | 'secondary' | 'contrast' {
     switch (pathway) {
       case 'Laboratory':
         return 'info';
@@ -471,6 +488,10 @@ export class Masters implements OnInit {
         return 'warn';
       case 'Consultation':
         return 'success';
+      case 'Vaccination':
+        return 'contrast';
+      case 'Physical':
+        return 'warn';
       default:
         return 'secondary';
     }

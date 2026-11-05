@@ -10,7 +10,7 @@ import { Message } from 'primeng/message';
 import { Tag } from 'primeng/tag';
 
 import { ClinicApi, ReportDto } from '../clinic-api';
-import { printFinalReport } from '../print/print';
+import { printFinalReport, printMedicalCertificate } from '../print/print';
 
 @Component({
   selector: 'app-report-collection-station',
@@ -102,37 +102,57 @@ export class ReportCollectionStation implements OnInit {
   protected print(report: ReportDto): void {
     this.printingId.set(report.id);
     this.error.set('');
-    const printed = printFinalReport(report);
-    if (printed) {
-      this.api.markReportPrinted(report.id).subscribe({
-        next: (res) => {
-          this.printingId.set(null);
-          this.info.set(`Printed ${report.visitNumber} · print count ${res.printCount}`);
-          this.reports.update((list) =>
-            list.map((r) => (r.id === report.id ? { ...r, printCount: res.printCount } : r)),
-          );
+
+    if (report.pathway === 'MedicalCertificate') {
+      this.api.certificateDetail(report.visitId).subscribe({
+        next: (detail) => {
+          const printed = printMedicalCertificate(detail);
+          this.afterPrint(report, printed);
         },
         error: () => {
           this.printingId.set(null);
-          this.info.set(`Printed ${report.visitNumber}`);
+          this.error.set('Could not load medical certificate for print.');
         },
       });
-    } else {
+      return;
+    }
+
+    this.afterPrint(report, printFinalReport(report));
+  }
+
+  private afterPrint(report: ReportDto, printed: boolean): void {
+    if (!printed) {
       this.printingId.set(null);
       this.error.set('Print dialog was blocked — allow popups and try again.');
+      return;
     }
+    this.api.markReportPrinted(report.id).subscribe({
+      next: (res) => {
+        this.printingId.set(null);
+        this.info.set(`Printed ${report.visitNumber} · print count ${res.printCount}`);
+        this.reports.update((list) =>
+          list.map((r) => (r.id === report.id ? { ...r, printCount: res.printCount } : r)),
+        );
+      },
+      error: () => {
+        this.printingId.set(null);
+        this.info.set(`Printed ${report.visitNumber}`);
+      },
+    });
   }
 
   protected serviceNames(report: ReportDto): string[] {
     return (report.lines ?? []).map((l) => l.serviceName).filter(Boolean);
   }
 
-  protected pathwaySeverity(pathway: string): 'success' | 'info' | 'warn' | 'secondary' {
+  protected pathwaySeverity(pathway: string): 'success' | 'info' | 'warn' | 'secondary' | 'danger' {
     switch (pathway) {
       case 'Laboratory':
         return 'info';
       case 'Radiology':
         return 'warn';
+      case 'MedicalCertificate':
+        return 'success';
       case 'Mixed':
         return 'secondary';
       default:

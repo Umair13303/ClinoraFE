@@ -89,6 +89,9 @@ export class FrontDesk implements OnInit {
 
   protected visitType: 'regular' | 'panel' = 'regular';
   protected referralMode: 'walkin' | 'referred' = 'walkin';
+  protected visitPurpose: 'Standard' | 'MedicalCertificate' = 'Standard';
+  protected destinationCountry = '';
+  protected readonly addingPackage = signal(false);
 
   protected readonly genderOptions = [
     { label: 'Female', value: 'Female' },
@@ -98,6 +101,10 @@ export class FrontDesk implements OnInit {
   protected readonly visitTypeOptions = [
     { label: 'Regular', value: 'regular' },
     { label: 'Panel', value: 'panel' },
+  ];
+  protected readonly purposeOptions = [
+    { label: 'Standard', value: 'Standard' },
+    { label: 'Medical cert', value: 'MedicalCertificate' },
   ];
   protected readonly referralOptions = [
     { label: 'Walk-in', value: 'walkin' },
@@ -288,6 +295,31 @@ export class FrontDesk implements OnInit {
     this.matches.set([]);
     this.receipt.set(null);
     queueMicrotask(() => this.focusServiceSearch());
+  }
+
+  protected addWafidPackage(): void {
+    this.addingPackage.set(true);
+    this.submitError.set('');
+    this.api.certificatePackage().subscribe({
+      next: (pkg) => {
+        this.addingPackage.set(false);
+        if (!pkg.services?.length) {
+          this.submitError.set('Wafid package services are not seeded yet. Restart API / check masters.');
+          return;
+        }
+        this.visitPurpose = 'MedicalCertificate';
+        for (const svc of pkg.services) {
+          if (!this.catalog().some((c) => c.id === svc.id)) {
+            this.catalog.update((list) => [...list, svc]);
+          }
+          this.addService(svc.id);
+        }
+      },
+      error: () => {
+        this.addingPackage.set(false);
+        this.submitError.set('Could not load Wafid package.');
+      },
+    });
   }
 
   protected removeService(id: number): void {
@@ -587,6 +619,9 @@ export class FrontDesk implements OnInit {
       referredBy: this.isReferred() ? this.form.controls.referredBy.value.trim() : null,
       slipNo: this.isReferred() ? this.form.controls.slipNo.value.trim() : null,
       notes: this.isReferred() ? this.form.controls.notes.value.trim() : null,
+      purpose: this.visitPurpose,
+      destinationCountry:
+        this.visitPurpose === 'MedicalCertificate' ? this.destinationCountry.trim() || null : null,
       services: this.lines().map((line) => ({
         serviceId: line.id,
         discount: line.discount,
@@ -630,6 +665,8 @@ export class FrontDesk implements OnInit {
     this.amountReceived.set(0);
     this.setPanel(false);
     this.setReferred(false);
+    this.visitPurpose = 'Standard';
+    this.destinationCountry = '';
     this.photoBase64.set(null);
     this.photoPreview.set(null);
     this.patientDetailsOpen.set(false);

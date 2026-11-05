@@ -120,6 +120,16 @@ export class Dashboard implements OnInit {
         station: 'Radiology',
       },
       {
+        key: 'vaccination',
+        label: 'Vaccination',
+        hint: 'Awaiting administration',
+        value: s.vaccination ?? 0,
+        route: '/vaccination',
+        icon: 'pi pi-shield',
+        tone: 'teal',
+        station: 'Vaccination',
+      },
+      {
         key: 'reports',
         label: 'Report collection',
         hint: 'Print / handover desk',
@@ -172,6 +182,7 @@ export class Dashboard implements OnInit {
       { label: 'Sent out', value: s.sentOut, tone: 'slate' },
       { label: 'Finalize', value: s.awaitingFinalize, tone: 'violet' },
       { label: 'Radiology', value: s.radiology, tone: 'slate' },
+      { label: 'Vaccination', value: s.vaccination ?? 0, tone: 'teal' },
     ].map((row) => ({ ...row, pct: Math.round((row.value / total) * 100) }));
   });
 

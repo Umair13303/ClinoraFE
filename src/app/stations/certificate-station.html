@@ -1,0 +1,187 @@
+<div class="desk-stage">
+  <header class="desk-top">
+    <div class="desk-top__title">
+      <strong>Medical certificate</strong>
+      <span>Wafid / foreign fitness — physical + package status → Fit / Unfit print</span>
+    </div>
+    <div class="station-toolbar">
+      <p-iconfield>
+        <p-inputicon styleClass="pi pi-search" />
+        <input
+          pInputText
+          [ngModel]="filter()"
+          (ngModelChange)="filter.set($event)"
+          placeholder="Visit / patient / passport"
+        />
+      </p-iconfield>
+      <input
+        pInputText
+        class="w-[180px]"
+        placeholder="Doctor / examiner"
+        [ngModel]="doctor"
+        (ngModelChange)="onDoctor($event)"
+      />
+      <p-button
+        icon="pi pi-refresh"
+        label="Refresh"
+        severity="secondary"
+        [outlined]="true"
+        size="small"
+        (onClick)="reload()"
+      />
+    </div>
+  </header>
+
+  <main class="desk-main overflow-auto p-3 md:p-4">
+    @if (error()) {
+      <p-message severity="error" [text]="error()!" styleClass="mb-3 w-full" />
+    }
+    @if (info()) {
+      <p-message severity="success" [text]="info()!" styleClass="mb-3 w-full" />
+    }
+
+    @if (selected(); as detail) {
+      <p-card styleClass="station-card mb-3">
+        <div class="station-card__head">
+          <div>
+            <h2 class="station-card__title">{{ detail.visitNumber }} · {{ detail.patientName }}</h2>
+            <p class="station-card__meta m-0 mt-0.5">
+              {{ detail.age }} yrs · {{ detail.gender }} · {{ detail.phone }} · Passport
+              {{ detail.passportNo || '—' }}
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <p-tag [value]="detail.fitness" [severity]="fitnessSeverity(detail.fitness)" />
+            <p-button label="Back" severity="secondary" [outlined]="true" size="small" (onClick)="closeDetail()" />
+          </div>
+        </div>
+        <div class="station-card__body grid gap-4">
+          <div>
+            <h3 class="mb-2 text-[13px] font-semibold uppercase tracking-wide text-[#64748b]">Package lines</h3>
+            <ul class="m-0 list-none space-y-2 p-0">
+              @for (line of detail.lines; track line.visitServiceId) {
+                <li class="flex flex-wrap items-center justify-between gap-2 rounded border border-[#e2e8f0] px-3 py-2">
+                  <div class="min-w-0">
+                    <strong class="block truncate">{{ line.serviceName }}</strong>
+                    <span class="text-[12px] text-[#64748b]">{{ line.pathway }} · {{ line.status }}</span>
+                  </div>
+                  <p-tag
+                    [value]="line.complete ? 'Done' : 'Pending'"
+                    [severity]="line.complete ? 'success' : 'warn'"
+                  />
+                </li>
+              }
+            </ul>
+          </div>
+
+          <div>
+            <h3 class="mb-2 text-[13px] font-semibold uppercase tracking-wide text-[#64748b]">Candidate + physical (Wafid fields)</h3>
+            <div class="mb-2 grid grid-cols-2 gap-2 max-[900px]:grid-cols-1 md:grid-cols-4">
+              <input pInputText placeholder="Nationality" [ngModel]="exam().nationality" (ngModelChange)="patchExam({ nationality: $event })" />
+              <input pInputText placeholder="Marital status" [ngModel]="exam().maritalStatus" (ngModelChange)="patchExam({ maritalStatus: $event })" />
+              <input pInputText placeholder="Profession" [ngModel]="exam().profession" (ngModelChange)="patchExam({ profession: $event })" />
+              <input pInputText placeholder="Passport expiry" [ngModel]="exam().passportExpiry" (ngModelChange)="patchExam({ passportExpiry: $event })" />
+              <input pInputText placeholder="Height (cm)" [ngModel]="exam().heightCm" (ngModelChange)="patchExam({ heightCm: $event })" />
+              <input pInputText placeholder="Weight (kg)" [ngModel]="exam().weightKg" (ngModelChange)="patchExam({ weightKg: $event })" />
+              <input pInputText placeholder="BP" [ngModel]="exam().bp" (ngModelChange)="patchExam({ bp: $event })" />
+              <input pInputText placeholder="Pulse / min" [ngModel]="exam().pulse" (ngModelChange)="patchExam({ pulse: $event })" />
+              <input pInputText placeholder="RR / min" [ngModel]="exam().rr" (ngModelChange)="patchExam({ rr: $event })" />
+              <input pInputText placeholder="Vision distant R" [ngModel]="exam().visionRight" (ngModelChange)="patchExam({ visionRight: $event })" />
+              <input pInputText placeholder="Vision distant L" [ngModel]="exam().visionLeft" (ngModelChange)="patchExam({ visionLeft: $event })" />
+              <input pInputText placeholder="Vision near R" [ngModel]="exam().visionNearRight" (ngModelChange)="patchExam({ visionNearRight: $event })" />
+              <input pInputText placeholder="Vision near L" [ngModel]="exam().visionNearLeft" (ngModelChange)="patchExam({ visionNearLeft: $event })" />
+              <input pInputText placeholder="Color vision" [ngModel]="exam().colorVision" (ngModelChange)="patchExam({ colorVision: $event })" />
+              <input pInputText placeholder="Hearing R" [ngModel]="exam().hearingRight" (ngModelChange)="patchExam({ hearingRight: $event })" />
+              <input pInputText placeholder="Hearing L" [ngModel]="exam().hearingLeft" (ngModelChange)="patchExam({ hearingLeft: $event })" />
+            </div>
+            <div class="mb-2 grid grid-cols-2 gap-2 max-[900px]:grid-cols-1 md:grid-cols-4">
+              <input pInputText placeholder="Respiratory" [ngModel]="exam().respiratory" (ngModelChange)="patchExam({ respiratory: $event })" />
+              <input pInputText placeholder="Cardiovascular" [ngModel]="exam().cardiovascular" (ngModelChange)="patchExam({ cardiovascular: $event })" />
+              <input pInputText placeholder="GI" [ngModel]="exam().gastro" (ngModelChange)="patchExam({ gastro: $event })" />
+              <input pInputText placeholder="Nervous" [ngModel]="exam().nervous" (ngModelChange)="patchExam({ nervous: $event })" />
+              <input pInputText placeholder="Genitourinary" [ngModel]="exam().genitourinary" (ngModelChange)="patchExam({ genitourinary: $event })" />
+              <input pInputText placeholder="Musculoskeletal" [ngModel]="exam().musculoskeletal" (ngModelChange)="patchExam({ musculoskeletal: $event })" />
+              <input pInputText placeholder="Appearance" [ngModel]="exam().appearance" (ngModelChange)="patchExam({ appearance: $event })" />
+              <input pInputText placeholder="Cognition" [ngModel]="exam().cognition" (ngModelChange)="patchExam({ cognition: $event })" />
+            </div>
+            <textarea pTextarea rows="2" class="mb-2 w-full" placeholder="Examiner comment" [ngModel]="exam().fitnessComment" (ngModelChange)="patchExam({ fitnessComment: $event })"></textarea>
+            <p-button icon="pi pi-save" label="Save physical" size="small" [loading]="busy()" (onClick)="savePhysical()" />
+          </div>
+
+          <div>
+            <h3 class="mb-2 text-[13px] font-semibold uppercase tracking-wide text-[#64748b]">Issue certificate</h3>
+            <div class="mb-2 grid grid-cols-2 gap-2 max-[800px]:grid-cols-1">
+              <p-select [options]="fitnessOptions" optionLabel="label" optionValue="value" [(ngModel)]="fitness" class="w-full" />
+              <input pInputText placeholder="Destination country" [(ngModel)]="destination" />
+            </div>
+            <textarea pTextarea rows="2" class="mb-2 w-full" placeholder="Remarks" [(ngModel)]="remarks"></textarea>
+            <div class="station-actions !mt-0">
+              <p-button
+                icon="pi pi-verified"
+                label="Issue + print"
+                size="small"
+                [loading]="busy()"
+                [disabled]="!detail.readyToIssue && detail.fitness === 'Pending'"
+                (onClick)="issue()"
+              />
+              <p-button
+                icon="pi pi-print"
+                label="Print"
+                size="small"
+                severity="secondary"
+                [outlined]="true"
+                [disabled]="detail.fitness === 'Pending'"
+                (onClick)="print()"
+              />
+            </div>
+            @if (!detail.readyToIssue && detail.fitness === 'Pending') {
+              <p class="mt-2 text-[12px] text-[#b45309]">
+                Complete all package lines (lab / radiology / vaccination / physical) before issuing.
+              </p>
+            }
+          </div>
+        </div>
+      </p-card>
+    } @else {
+      <div class="mb-3 station-banner">
+        <div>
+          <strong>{{ visible().length }} certificate visit{{ visible().length === 1 ? '' : 's' }}</strong>
+          <span>Book as Medical certificate purpose + Wafid package at front desk.</span>
+        </div>
+      </div>
+
+      <p-card styleClass="station-card">
+        <div class="station-card__body">
+          @if (visible().length === 0) {
+            <div class="station-empty !min-h-[140px] border-0 bg-transparent p-2">
+              <i class="pi pi-id-card"></i>
+              <div>
+                <strong>No medical certificate visits</strong>
+                <p>Front desk → purpose Medical certificate → Add Wafid package.</p>
+              </div>
+            </div>
+          } @else {
+            <ul class="m-0 list-none p-0">
+              @for (item of visible(); track item.visitId) {
+                <li class="station-row items-center">
+                  <div class="min-w-0 flex-1">
+                    <strong class="block truncate">{{ item.patientName }}</strong>
+                    <span class="text-[12px] text-[#64748b]">
+                      {{ item.visitNumber }} · {{ item.completedLines }}/{{ item.totalLines }} done
+                      @if (item.destinationCountry) {
+                        · {{ item.destinationCountry }}
+                      }
+                      · {{ item.createdAt | date: 'short' }}
+                    </span>
+                  </div>
+                  <p-tag [value]="item.fitness" [severity]="fitnessSeverity(item.fitness)" />
+                  <p-button label="Open" size="small" (onClick)="open(item)" />
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </p-card>
+    }
+  </main>
+</div>

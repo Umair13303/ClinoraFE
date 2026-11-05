@@ -356,6 +356,40 @@
                   size="small"
                 />
               </div>
+              <div class="desk-row mb-2">
+                <span class="desk-muted">Purpose</span>
+                <p-selectButton
+                  [options]="purposeOptions"
+                  [(ngModel)]="visitPurpose"
+                  [ngModelOptions]="{ standalone: true }"
+                  optionLabel="label"
+                  optionValue="value"
+                  size="small"
+                />
+              </div>
+              @if (visitPurpose === 'MedicalCertificate') {
+                <label class="desk-label mb-2">
+                  Destination country
+                  <input
+                    pInputText
+                    type="text"
+                    [(ngModel)]="destinationCountry"
+                    [ngModelOptions]="{ standalone: true }"
+                    placeholder="e.g. Saudi Arabia"
+                    fluid
+                  />
+                </label>
+                <p-button
+                  label="Add Wafid package"
+                  icon="pi pi-id-card"
+                  severity="secondary"
+                  [outlined]="true"
+                  size="small"
+                  styleClass="mb-2 w-full!"
+                  [loading]="addingPackage()"
+                  (onClick)="addWafidPackage()"
+                />
+              }
               @if (isPanel()) {
                 <label class="desk-label mb-2">
                   Panel / company

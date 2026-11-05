@@ -66,7 +66,7 @@
         <div>
           @if (mode() === 'today') {
             <strong>No reports finalized today</strong>
-            <p>Lab reports appear after doctor finalize; radiology reports after radiologist approve &amp; sign.</p>
+            <p>Lab after doctor finalize · radiology after sign · medical certificate after Fit/Unfit issue.</p>
           } @else {
             <strong>No report found</strong>
             <p>Check the visit number, or confirm the visit was finalized or signed.</p>
@@ -131,7 +131,13 @@
               </span>
               <p-button
                 icon="pi pi-print"
-                [label]="report.printCount > 0 ? 'Reprint' : 'Print report'"
+                [label]="
+                  report.printCount > 0
+                    ? 'Reprint'
+                    : report.pathway === 'MedicalCertificate'
+                      ? 'Print certificate'
+                      : 'Print report'
+                "
                 size="small"
                 [loading]="printingId() === report.id"
                 (onClick)="print(report)"

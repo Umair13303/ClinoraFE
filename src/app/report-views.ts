@@ -3,6 +3,7 @@
  * Add new lab departments by registering a renderer — do not fork the whole print pipeline.
  */
 import { ihcWorksheetToPrintHtml, parseIhcWorksheet } from './ihc-report';
+import { parsePhysicalExam, physicalExamToPrintHtml } from './physical-exam';
 import { sanitizeReportHtml } from './rich-text';
 import { parseSemenWorksheet, semenWorksheetToPrintHtml } from './semen-report';
 
@@ -24,6 +25,7 @@ export type ReportProfileId =
   | 'Narrative'
   | 'Radiology'
   | 'Ihc'
+  | 'PhysicalExam'
   | string;
 
 export function normalizeReportProfile(
@@ -80,6 +82,9 @@ export function renderProfileBlock(line: ReportViewLine, pathwayHint?: string): 
   if (profile === 'Ihc') {
     return `<section class="rv-section rv-ihc"><h3 class="rv-section__title">${title}</h3>${ihcWorksheetToPrintHtml(parseIhcWorksheet(line.resultText))}</section>`;
   }
+  if (profile === 'PhysicalExam') {
+    return `<section class="rv-section rv-physical"><h3 class="rv-section__title">${title}</h3>${physicalExamToPrintHtml(parsePhysicalExam(line.resultText))}</section>`;
+  }
   if (profile === 'Narrative') {
     return `<section class="rv-section rv-narrative"><h3 class="rv-section__title">${title}</h3><div class="rv-body">${formatResultCell(line.resultText)}</div></section>`;
   }
@@ -109,9 +114,9 @@ export const reportViewStyles = `
   .rv-body{font-size:12.5px;line-height:1.45}
   .rv-body p{margin:0 0 0.55em}
   .rv-body ul,.rv-body ol{margin:0.4em 0 0.6em 1.2em}
-  .semen-table,.ihc-table{width:100%;border-collapse:collapse;font-size:12.5px}
-  .semen-table th,.semen-table td,.ihc-table th,.ihc-table td{border:1px solid #e2e8f0;padding:6px 8px;text-align:left}
-  .semen-table th{width:42%;background:#f8fafc;font-weight:600}
+  .semen-table,.ihc-table,.pe-table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .semen-table th,.semen-table td,.ihc-table th,.ihc-table td,.pe-table th,.pe-table td{border:1px solid #e2e8f0;padding:6px 8px;text-align:left}
+  .semen-table th,.pe-table th{width:42%;background:#f8fafc;font-weight:600}
   .ihc-table th{background:#f8fafc;font-weight:600}
   .ihc-panel,.ihc-interp{font-size:12.5px;margin:0 0 8px}
 `;
