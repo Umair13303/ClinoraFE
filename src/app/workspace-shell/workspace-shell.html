@@ -1,58 +1,66 @@
-<div class="desk-shell">
-  <aside class="desk-nav">
-    <div class="desk-brand">
-      <span class="desk-mark">C</span>
-      <div>
+<div class="erp-shell">
+  <aside class="erp-sidebar" aria-label="Main navigation">
+    <a class="erp-brand" routerLink="/dashboard" aria-label="Clinora home">
+      <span class="erp-brand__mark">C</span>
+      <span class="erp-brand__copy">
         <strong>Clinora</strong>
-        <small>Diagnostics desk</small>
-      </div>
-    </div>
+        <small>CLINICAL OPERATIONS</small>
+      </span>
+      <span class="erp-brand__status" title="Workspace online"></span>
+    </a>
 
     @if (branches().length > 0) {
-    <div class="mb-3">
-      <p class="desk-nav-label">Branch</p>
+    <section class="erp-branch" aria-label="Active branch">
+      <span class="erp-eyebrow">ACTIVE BRANCH</span>
       <p-select [options]="branches()"
                 optionLabel="name"
                 optionValue="id"
                 [(ngModel)]="selectedBranchId"
                 (ngModelChange)="onBranchChange($event)"
                 size="small"
-                styleClass="w-full desk-branch-select" />
+                styleClass="erp-branch__select"
+                aria-label="Select branch" />
+    </section>
+    }
+
+    <div class="erp-nav-heading">
+      <span class="erp-eyebrow">WORKSPACE</span>
+      <span class="erp-nav-heading__count">{{ nav().length }}</span>
     </div>
-    }
 
-    <p class="desk-nav-label">Workspace</p>
-    @if (menuError()) {
-    <p class="px-3 text-sm text-red-600">{{ menuError() }}</p>
-    } @else if (!hasMenus()) {
-    <p class="px-3 text-sm text-slate-500">No menus are assigned to your role.</p>
-    } @else {
-    @for (menu of menus(); track $index) {
-    @if (menu.menu) {
-    <p class="desk-nav-label">{{ menu.menu }}</p>
-    }
-    @for (subMenu of menu.subMenu; track $index) {
-    @if (subMenu.subMenu) {
-    <p class="px-3 pt-2 text-xs font-semibold text-slate-500">{{ subMenu.subMenu }}</p>
-    }
-    @for (right of subMenu.rights; track right.url ?? right.displayName ?? $index) {
-    @if (routeFor(right.url); as route) {
-    <a class="desk-nav-item" [routerLink]="route" routerLinkActive="is-active">
-      {{ right.displayName || right.url }}
-    </a>
-    } @else {
-    <span class="desk-nav-item opacity-60" [title]="'No Angular route mapping for: ' + (right.url || '')">
-      {{ right.displayName || right.url }}
-    </span>
-    }
-    }
-    }
-    }
-    }
+    <nav class="erp-nav" aria-label="Workspace sections">
+      @for (section of navSections(); track section.label) {
+      <section class="erp-nav__section">
+        <h2 class="erp-nav__section-title">{{ section.label }}</h2>
+        @for (item of section.items; track item.path) {
+        <a class="erp-nav__item" [routerLink]="item.path" routerLinkActive="erp-nav__item--active">
+          <span class="erp-nav__icon"><i [class]="item.icon" aria-hidden="true"></i></span>
+          <span class="erp-nav__label">{{ item.label }}</span>
+          <i class="pi pi-angle-right erp-nav__chevron" aria-hidden="true"></i>
+        </a>
+        }
+      </section>
+      }
+    </nav>
 
-    <button type="button" class="desk-signout" (click)="signOut()">Sign out</button>
+    <div class="erp-sidebar__bottom">
+      <div class="erp-user">
+        <span class="erp-user__avatar">{{ userInitials() }}</span>
+        <span class="erp-user__details">
+          <strong>{{ currentUser?.name || 'Clinora user' }}</strong>
+          <small>{{ currentUser?.email || 'Signed in' }}</small>
+        </span>
+        <span class="erp-user__online" title="Signed in"></span>
+      </div>
+      <button type="button" class="erp-signout" (click)="signOut()">
+        <i class="pi pi-sign-out" aria-hidden="true"></i>
+        <span>Sign out</span>
+      </button>
+      <div class="erp-sidebar__version">CLINORA <span>•</span> WORKSPACE</div>
+    </div>
   </aside>
-  <div class="desk-outlet">
+
+  <main class="erp-main">
     <router-outlet />
-  </div>
+  </main>
 </div>
