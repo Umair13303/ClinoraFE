@@ -8,7 +8,7 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([]), { provide: API_BASE_URL, useValue: 'http://localhost:5013' }],
+      providers: [provideRouter([]), { provide: API_BASE_URL, useValue: 'https://localhost:7068' }],
     }).compileComponents();
   });
 
