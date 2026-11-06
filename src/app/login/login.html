@@ -1,40 +1,62 @@
-<section
-  class="grid min-h-dvh place-items-center p-6 text-[#0f172a]"
-  style="
-    background:
-      radial-gradient(1100px 480px at 12% -8%, rgba(31, 127, 116, 0.16), transparent 58%),
-      radial-gradient(900px 420px at 100% 0%, rgba(28, 25, 23, 0.08), transparent 55%),
-      linear-gradient(180deg, #dce5ec 0%, #e8eef2 48%, #f1f5f8 100%);
-  "
->
-  <div class="grid w-full max-w-md gap-7">
-    <div class="text-center">
-      <div
-        class="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] text-lg font-bold text-white shadow-[0_12px_28px_rgba(31,127,116,0.3)]"
-        style="background: linear-gradient(145deg, #2dd4bf 0%, #0f766e 48%, #115e59 100%)"
-      >
-        C
-      </div>
-      <h1 class="font-display m-0 text-[2.5rem] font-semibold tracking-tight">Clinora</h1>
-      <p class="mt-2 text-sm text-[#64748b]">Diagnostics and hospital front desk</p>
+<section class="login">
+  <div class="login__atmosphere" aria-hidden="true">
+    <svg class="login__ecg" viewBox="0 0 1200 280" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id="ecgGlow" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#fb7185" stop-opacity="0.15" />
+          <stop offset="45%" stop-color="#fb7185" stop-opacity="1" />
+          <stop offset="100%" stop-color="#fb7185" stop-opacity="0.2" />
+        </linearGradient>
+        <filter id="ecgBlur" x="-20%" y="-80%" width="140%" height="260%">
+          <feGaussianBlur stdDeviation="2.4" />
+        </filter>
+      </defs>
+      <!-- echo traces -->
+      <path
+        class="login__ecg-echo login__ecg-echo--top"
+        d="M0 110 H180 L210 110 L230 40 L255 180 L280 110 H480 L510 110 L530 40 L555 180 L580 110 H780 L810 110 L830 40 L855 180 L880 110 H1080 L1110 110 L1130 40 L1155 180 L1180 110 H1200"
+        fill="none"
+      />
+      <path
+        class="login__ecg-echo login__ecg-echo--bot"
+        d="M0 170 H180 L210 170 L230 100 L255 240 L280 170 H480 L510 170 L530 100 L555 240 L580 170 H780 L810 170 L830 100 L855 240 L880 170 H1080 L1110 170 L1130 100 L1155 240 L1180 170 H1200"
+        fill="none"
+      />
+      <!-- main waveform -->
+      <path
+        class="login__ecg-main login__ecg-main--glow"
+        d="M0 140 H180 L210 140 L230 55 L255 225 L280 140 H480 L510 140 L530 55 L555 225 L580 140 H780 L810 140 L830 55 L855 225 L880 140 H1080 L1110 140 L1130 55 L1155 225 L1180 140 H1200"
+        fill="none"
+        filter="url(#ecgBlur)"
+      />
+      <path
+        class="login__ecg-main"
+        d="M0 140 H180 L210 140 L230 55 L255 225 L280 140 H480 L510 140 L530 55 L555 225 L580 140 H780 L810 140 L830 55 L855 225 L880 140 H1080 L1110 140 L1130 55 L1155 225 L1180 140 H1200"
+        fill="none"
+        stroke="url(#ecgGlow)"
+      />
+    </svg>
+  </div>
+
+  <div class="login__panel">
+    <div class="login__brand">
+      <div class="login__mark">C</div>
+      <h1>Clinora</h1>
+      <p>Diagnostics and hospital front desk</p>
     </div>
 
-    <form
-      class="grid gap-3.5 rounded-[18px] border border-[#d5dee6] bg-[linear-gradient(180deg,#ffffff_0%,#fff_100%)] p-6 shadow-[0_1px_0_rgba(255,255,255,0.85)_inset,0_18px_40px_rgba(28,25,23,0.06)]"
-      [formGroup]="form"
-      (ngSubmit)="submit()"
-    >
-      <header class="mb-1">
-        <h2 class="m-0 text-lg font-semibold tracking-tight">Sign in</h2>
-        <p class="mt-1.5 text-sm text-[#64748b]">Use your desk account to open the visit workflow.</p>
+    <form class="login__form" [formGroup]="form" (ngSubmit)="submit()">
+      <header>
+        <h2>Sign in</h2>
+        <p>Use your desk account to open the visit workflow.</p>
       </header>
 
-      <label class="grid gap-1.5 text-[12px] font-semibold text-[#475569]">
+      <label>
         Email
         <input pInputText type="email" formControlName="email" autocomplete="username" fluid />
       </label>
 
-      <label class="grid gap-1.5 text-[12px] font-semibold text-[#475569]">
+      <label>
         Password
         <input pInputText type="password" formControlName="password" autocomplete="current-password" fluid />
       </label>
@@ -43,7 +65,12 @@
         <p-message severity="error" [text]="error()" styleClass="w-full" />
       }
 
-      <p-button type="submit" [label]="submitting() ? 'Signing in…' : 'Sign in'" [loading]="submitting()" styleClass="mt-1 w-full!" />
+      <p-button
+        type="submit"
+        [label]="submitting() ? 'Signing in…' : 'Sign in'"
+        [loading]="submitting()"
+        styleClass="mt-1 w-full!"
+      />
     </form>
   </div>
 </section>
