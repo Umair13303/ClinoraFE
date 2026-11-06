@@ -1,30 +1,61 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Select } from 'primeng/select';
 
+import { API_BASE_URL } from '../app.config';
 import { cacheClinicSettings } from '../auth/station-guard';
 import { BranchContext, readAuth } from '../branch-context';
 import { BranchDto, ClinicApi, ClinicSettings } from '../clinic-api';
 import { cacheClinicLetterhead } from '../print/print';
 
-type NavItem = { path: string; label: string; station: string | null };
+type MenuRight = {
+  displayName: string | null;
+  url: string | null;
+  operationType: string | null;
+  priority: number;
+};
 
-const ALL_NAV: NavItem[] = [
-  { path: '/dashboard', label: 'Dashboard', station: null },
-  { path: '/desk', label: 'Front desk', station: 'FrontDesk' },
-  { path: '/collection', label: 'Sample collection', station: 'Phlebotomy' },
-  { path: '/barcode', label: 'Barcode', station: 'Phlebotomy' },
-  { path: '/receiving', label: 'Lab receiving', station: 'Lab' },
-  { path: '/results', label: 'Result entry', station: 'Lab' },
-  { path: '/finalize', label: 'Finalize', station: 'Doctor' },
-  { path: '/reports', label: 'Report collection', station: 'FrontDesk' },
-  { path: '/radiology', label: 'Radiology', station: 'Radiology' },
-  { path: '/vaccination', label: 'Vaccination', station: 'Vaccination' },
-  { path: '/certificate', label: 'Medical certificate', station: 'MedicalCertificate' },
-  { path: '/outside-lab', label: 'Outside lab', station: 'Lab' },
-  { path: '/masters', label: 'Masters', station: 'Admin' },
-];
+type MenuSubMenu = {
+  subMenu: string | null;
+  rights: MenuRight[];
+};
+
+type DatabaseMenu = {
+  menu: string | null;
+  subMenu: MenuSubMenu[];
+};
+
+const ROUTE_BY_MENU_URL: Record<string, string> = {
+  dashboard: '/dashboard',
+  frontdesk: '/desk',
+  'front-desk': '/desk',
+  desk: '/desk',
+  collection: '/collection',
+  samplecollection: '/collection',
+  barcode: '/barcode',
+  receiving: '/receiving',
+  labreceiving: '/receiving',
+  results: '/results',
+  resultentry: '/results',
+  finalize: '/finalize',
+  reports: '/reports',
+  reportcollection: '/reports',
+  radiology: '/radiology',
+  vaccination: '/vaccination',
+  certificate: '/certificate',
+  medicalcertificate: '/certificate',
+  outsidelab: '/outside-lab',
+  masters: '/masters',
+  admin: '/masters',
+};
+
+const VALID_ROUTES = new Set([
+  '/dashboard', '/desk', '/collection', '/barcode', '/receiving', '/results',
+  '/finalize', '/reports', '/radiology', '/vaccination', '/certificate',
+  '/outside-lab', '/masters',
+]);
 
 @Component({
   selector: 'app-workspace-shell',
@@ -35,25 +66,19 @@ export class WorkspaceShell implements OnInit {
   private readonly router = inject(Router);
   private readonly api = inject(ClinicApi);
   private readonly branchCtx = inject(BranchContext);
+  private readonly http = inject(HttpClient);
+  private readonly apiBaseUrl = inject(API_BASE_URL);
 
   protected readonly branches = signal<BranchDto[]>([]);
   protected readonly settings = signal<ClinicSettings | null>(null);
+  protected readonly menus = signal<DatabaseMenu[]>([]);
+  protected readonly menuError = signal('');
   protected readonly roleId = signal(0);
   protected selectedBranchId: number | null = null;
 
-  protected readonly nav = computed(() => {
-    const settings = this.settings();
-    const roleId = this.roleId();
-    const stations =
-      settings?.roleStations?.[String(roleId)] ??
-      settings?.roleStations?.['default'] ??
-      ALL_NAV.map((n) => n.station).filter((s): s is string => !!s);
-    const allowed = new Set(stations);
-    if (allowed.has('Admin')) {
-      return ALL_NAV;
-    }
-    return ALL_NAV.filter((item) => item.station == null || allowed.has(item.station));
-  });
+  protected readonly hasMenus = computed(() => this.menus().some((menu) =>
+    menu.subMenu?.some((subMenu) => subMenu.rights?.length),
+  ));
 
   ngOnInit(): void {
     const auth = readAuth();
@@ -66,6 +91,16 @@ export class WorkspaceShell implements OnInit {
     if (this.selectedBranchId) {
       this.branchCtx.setBranch(this.selectedBranchId);
     }
+
+    this.http
+      .get<DatabaseMenu[]>(`${this.apiBaseUrl}/api/ApplicationConfiguration/COMAuthentication/UserMenu_Populate`)
+      .subscribe({
+        next: (menus) => {
+          this.menus.set(menus ?? []);
+          this.menuError.set('');
+        },
+        error: () => this.menuError.set('Could not load menus. Check the API response and your access.'),
+      });
 
     this.api.branches().subscribe({
       next: (list) => {
@@ -83,6 +118,23 @@ export class WorkspaceShell implements OnInit {
         cacheClinicLetterhead(settings);
       },
     });
+  }
+
+  protected routeFor(url: string | null): string | null {
+    if (!url?.trim()) return null;
+    const trimmed = url.trim();
+    const routeCandidate = `/${trimmed.replace(/^\/+|\/+$/g, '').split(/[?#]/)[0]}`.toLowerCase();
+    if (VALID_ROUTES.has(routeCandidate)) return routeCandidate;
+
+    const key = trimmed
+      .replace(/\\/g, '/')
+      .replace(/[?#].*$/, '')
+      .split('/')
+      .filter(Boolean)
+      .pop()
+      ?.toLowerCase()
+      .replace(/[^a-z0-9-]/g, '');
+    return key ? ROUTE_BY_MENU_URL[key] ?? null : null;
   }
 
   protected onBranchChange(id: number | null): void {

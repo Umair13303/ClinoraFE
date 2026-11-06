@@ -9,24 +9,47 @@
     </div>
 
     @if (branches().length > 0) {
-      <div class="mb-3">
-        <p class="desk-nav-label">Branch</p>
-        <p-select
-          [options]="branches()"
-          optionLabel="name"
-          optionValue="id"
-          [(ngModel)]="selectedBranchId"
-          (ngModelChange)="onBranchChange($event)"
-          size="small"
-          styleClass="w-full desk-branch-select"
-        />
-      </div>
+    <div class="mb-3">
+      <p class="desk-nav-label">Branch</p>
+      <p-select [options]="branches()"
+                optionLabel="name"
+                optionValue="id"
+                [(ngModel)]="selectedBranchId"
+                (ngModelChange)="onBranchChange($event)"
+                size="small"
+                styleClass="w-full desk-branch-select" />
+    </div>
     }
 
     <p class="desk-nav-label">Workspace</p>
-    @for (item of nav(); track item.path) {
-      <a class="desk-nav-item" [routerLink]="item.path" routerLinkActive="is-active">{{ item.label }}</a>
+    @if (menuError()) {
+    <p class="px-3 text-sm text-red-600">{{ menuError() }}</p>
+    } @else if (!hasMenus()) {
+    <p class="px-3 text-sm text-slate-500">No menus are assigned to your role.</p>
+    } @else {
+    @for (menu of menus(); track $index) {
+    @if (menu.menu) {
+    <p class="desk-nav-label">{{ menu.menu }}</p>
     }
+    @for (subMenu of menu.subMenu; track $index) {
+    @if (subMenu.subMenu) {
+    <p class="px-3 pt-2 text-xs font-semibold text-slate-500">{{ subMenu.subMenu }}</p>
+    }
+    @for (right of subMenu.rights; track right.url ?? right.displayName ?? $index) {
+    @if (routeFor(right.url); as route) {
+    <a class="desk-nav-item" [routerLink]="route" routerLinkActive="is-active">
+      {{ right.displayName || right.url }}
+    </a>
+    } @else {
+    <span class="desk-nav-item opacity-60" [title]="'No Angular route mapping for: ' + (right.url || '')">
+      {{ right.displayName || right.url }}
+    </span>
+    }
+    }
+    }
+    }
+    }
+
     <button type="button" class="desk-signout" (click)="signOut()">Sign out</button>
   </aside>
   <div class="desk-outlet">

@@ -178,7 +178,18 @@ export type ClinicSettings = {
   phone: string | null;
   roleStations: Record<string, string[]>;
 };
-
+export type MenuDto = {
+  menu: string | null;
+  subMenu: Array<{
+    subMenu: string | null;
+    rights: Array<{
+      displayName: string | null;
+      url: string | null;
+      operationType: string | null;
+      priority: number;
+    }>;
+  }>;
+};
 export type WorklistSummary = {
   awaitingCollection: number;
   collected: number;
@@ -454,6 +465,11 @@ export class ClinicApi {
 
   clinicSettings() {
     return this.http.get<ClinicSettings>(`${this.baseUrl}/api/clinic/settings`);
+  }
+  userMenus() {
+    return this.http.get<MenuDto[]>(
+      `${this.baseUrl}/api/ApplicationConfiguration/COMAuthentication/UserMenu_Populate`,
+    );
   }
 
   branches() {
